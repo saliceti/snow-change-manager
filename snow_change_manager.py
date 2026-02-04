@@ -38,11 +38,13 @@ def send_request(url, method, user, password, payload=None, headers=None, debug=
         body = resp.read().decode("utf-8")
         try:
             data = json.loads(body) if body else None
+
+            if debug:
+                print(f"RESPONSE_STATUS={status}")
+                print("RESPONSE=" + json.dumps(data, indent=2))
         except json.JSONDecodeError:
-            data = body
-        if debug:
-            print(status)
-            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
+            print("Error decoding JSON response:" + body)
+            sys.exit(1)
         return status, data
 
 def create(snow_url, snow_standard_change, assignment_group, user, password,
@@ -142,17 +144,13 @@ def main():
             case _:
                 parser.error("unknown command")
 
-        # print summary if API returned structured "result"
-        if isinstance(data, dict) and "result" in data:
-            print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-            print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-            state = data["result"].get("state")
-            if isinstance(state, dict):
-                print("CHANGE_STATE=" + state.get("display_value", ""))
-            else:
-                print("CHANGE_STATE=" + str(state))
-        else:
-            print("RESPONSE:", data)
+        if status != 200:
+            print(f"Error: Unexpected status code - {status}")
+            sys.exit(1)
+
+        print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+        print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+        print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
         sys.exit(1)
