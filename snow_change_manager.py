@@ -29,7 +29,7 @@ def send_request(url, method, user, password, payload=None, extra_headers=None, 
         data = payload  # bytes or None
 
     # For POST with empty body data should be b"" to enforce POST
-    req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     with urllib.request.urlopen(req) as resp:
         status = resp.getcode()
         body = resp.read().decode("utf-8")
