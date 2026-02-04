@@ -17,7 +17,7 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
     base_url = f"{snow_url}/api/sn_chg_rest/change/standard/{snow_standard_change}"
-    params = {"short_description": short_description}
+    params = {"short_description": short_description, "state": "Scheduled"}
     if assignment_group:
         params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
@@ -46,12 +46,42 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
             print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
         return status, data
 
-def update(snow_url, sys_id, user, password, debug=False, fields=None):
+def update(snow_url, sys_id, user, password, state, debug=False):
     """
-    Update an existing change identified by sys_id.
-    Not implemented yet; raise NotImplementedError so callers can handle it.
+    Update an existing change identified by sys_id via a PATCH request.
+    state: required string, one of "Implement", "Review", "Close".
+    Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    raise NotImplementedError("update not implemented yet")
+    if state not in ("Implement", "Review", "Close"):
+        raise ValueError("state must be one of: Implement, Review, Close")
+
+    fields = {"state": state}
+
+    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+
+    creds = f"{user}:{password}".encode("utf-8")
+    auth_header = "Basic " + base64.b64encode(creds).decode("ascii")
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": auth_header
+    }
+
+    payload = json.dumps(fields).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers=headers, method="PATCH")
+
+    with urllib.request.urlopen(req) as resp:
+        status = resp.getcode()
+        body = resp.read().decode("utf-8")
+        try:
+            data = json.loads(body) if body else None
+        except json.JSONDecodeError:
+            data = body
+        if debug:
+            print(status)
+            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
+        return status, data
 
 def main():
     debug = os.environ.get("DEBUG") == "true"
@@ -70,17 +100,26 @@ def main():
     parser.add_argument("--standard-change", help="standard change sys_id (required with --create)")
     parser.add_argument("--assignment-group", help="assignment group sys_id (required with --create)")
 
+    # New --state argument for update; restrict allowed values
+    parser.add_argument("--state", choices=["Implement", "Review", "Close"],
+                        help="state to set when updating (one of Implement, Review, Close)")
+
     args = parser.parse_args()
 
     try:
         if args.update:
             if not args.sys_id:
                 parser.error("--sys-id is required with --update")
+            # require --state when updating
+            if not args.state:
+                parser.error("--state is required with --update")
             try:
-                status, data = update(snow_url, args.sys_id, user, password, debug=debug)
+                # pass selected state into update()
+                status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
                 # If update returns a response, print something useful
                 if isinstance(data, dict):
                     print("UPDATE_SYS_ID=" + str(args.sys_id))
+                    print("UPDATE_STATE=" + args.state)
                 else:
                     print("UPDATE_RESPONSE:", data)
             except NotImplementedError as e:
