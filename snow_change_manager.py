@@ -51,6 +51,13 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
            short_description="abcd", debug=False):
     """
     Construct and POST a standard change using the provided parameters.
+
+    Uses the ServiceNow "Standard Change" REST endpoint:
+      POST /api/sn_chg_rest/change/standard/{standard_change_sys_id}
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
     base_url = f"{snow_url}/api/sn_chg_rest/change/standard/{snow_standard_change}"
@@ -65,7 +72,14 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
 def update(snow_url, sys_id, user, password, state, debug=False):
     """
     Update an existing change identified by sys_id via a PATCH request.
-    state: required string, one of "Implement", "Review", "Closed".
+
+    Uses the Change REST endpoint:
+      PATCH /api/sn_chg_rest/change/{sys_id}
+    to set the 'state' field.
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
     if state not in ("Implement", "Review", "Closed"):
@@ -78,8 +92,13 @@ def update(snow_url, sys_id, user, password, state, debug=False):
 def close(snow_url, sys_id, user, password, result, debug=False):
     """
     Close an existing change identified by sys_id via a PATCH request.
-    result: "successful" or "unsuccessful" - determines close_code and close_notes.
-    Sends state="Closed" plus close_code and close_notes.
+
+    Sends state="Closed" plus close_code and close_notes to:
+      PATCH /api/sn_chg_rest/change/{sys_id}
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
     Returns (status, data).
     """
     if result not in ("successful", "unsuccessful"):
