@@ -136,21 +136,11 @@ def main():
                     parser.error("--result is required when --state Closed")
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
                 if isinstance(data, dict):
-                    print("CHANGE_SYS_ID=" + str(args.sys_id))
-                    print("CHANGE_STATE=Closed")
-                    print("CLOSE_RESULT=" + args.result)
-                else:
-                    print("UPDATE_RESPONSE:", data)
+                    print("CLOSE_RESULT=" + data["result"]["close_code"]["value"])
             else:
                 try:
                     # pass selected state into update()
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
-                    # If update returns a response, print something useful
-                    if isinstance(data, dict):
-                        print("CHANGE_SYS_ID=" + str(args.sys_id))
-                        print("CHANGE_STATE=" + args.state)
-                    else:
-                        print("UPDATE_RESPONSE:", data)
                 except NotImplementedError as e:
                     print(e, file=sys.stderr)
                     sys.exit(2)
@@ -161,11 +151,6 @@ def main():
             if not args.result:
                 parser.error("--result is required with --close")
             status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
-            if isinstance(data, dict):
-                print("CLOSE_SYS_ID=" + str(args.sys_id))
-                print("CLOSE_RESULT=" + args.result)
-            else:
-                print("CLOSE_RESPONSE:", data)
         else:
             # default to create if --create or no flags
             # require CLI args (no environment fallback)
@@ -180,8 +165,9 @@ def main():
 
             status, data = create(snow_url, snow_standard_change, snow_assignment_group,
                                   user, password, short_description=args.short_description, debug=debug)
-            print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-            print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+        print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+        print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+        print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
         sys.exit(1)
