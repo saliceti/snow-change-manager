@@ -8,6 +8,7 @@ import urllib.request
 import urllib.error
 import sys
 import argparse
+from datetime import datetime,timedelta
 
 def _auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
@@ -44,6 +45,12 @@ def send_request(url, method, user, password, payload=None, extra_headers=None, 
             sys.exit(1)
         return status, data
 
+def get_datetime(minutes=0):
+    delta = timedelta(minutes=minutes)
+    datetime_now = datetime.now()
+    datetime_plus_delta = datetime_now + delta
+    return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
+
 def create(snow_url, snow_standard_change, assignment_group, user, password,
            short_description="abcd", debug=False):
     """
@@ -58,7 +65,12 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
     base_url = f"{snow_url}/api/sn_chg_rest/change/standard/{snow_standard_change}"
-    params = {"short_description": short_description, "state": "Scheduled"}
+    params = {
+        "short_description": short_description,
+        "state": "Scheduled",
+        "start_date": get_datetime(),
+        "end_date": get_datetime(60)
+    }
     params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
