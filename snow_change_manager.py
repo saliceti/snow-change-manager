@@ -101,73 +101,58 @@ def main():
     password = os.environ.get("SNOW_PASSWORD")
 
     parser = argparse.ArgumentParser(description="Create or update ServiceNow standard changes")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--create", action="store_true", help="Create a new standard change")
-    group.add_argument("--update", action="store_true", help="Update an existing change")
-    group.add_argument("--close", action="store_true", help="Close an existing change")
-    parser.add_argument("--sys-id", help="sys_id of change to update/close (required with --update or --close)")
-    parser.add_argument("--short-description", default="abcd", help="short description for create")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # New CLI options for standard change and assignment group.
-    parser.add_argument("--standard-change", help="standard change sys_id (required with --create)")
-    parser.add_argument("--assignment-group", help="assignment group sys_id (required with --create)")
+    # create subcommand
+    sp_create = subparsers.add_parser("create", help="Create a new standard change")
+    sp_create.add_argument("--standard-change", required=True, help="standard change sys_id (required)")
+    sp_create.add_argument("--assignment-group", required=True, help="assignment group sys_id (required)")
+    sp_create.add_argument("--short-description", required=True, help="short description for create")
 
-    # New --state argument for update; restrict allowed values
-    parser.add_argument("--state", choices=["Implement", "Review", "Closed"],
-                        help="state to set when updating (one of Implement, Review, Closed)")
+    # update subcommand
+    sp_update = subparsers.add_parser("update", help="Update an existing change")
+    sp_update.add_argument("--sys-id", required=True, help="sys_id of change to update (required)")
+    sp_update.add_argument("--state", choices=["Implement", "Review", "Closed"], required=True,
+                           help="state to set when updating (one of Implement, Review, Closed)")
+    sp_update.add_argument("--result", choices=["successful", "unsuccessful"],
+                           help="result for close (required when state is Closed)")
 
-    # New --result for close
-    parser.add_argument("--result", choices=["successful", "unsuccessful"],
-                        help="result for close (required with --close)")
+    # close subcommand
+    sp_close = subparsers.add_parser("close", help="Close an existing change")
+    sp_close.add_argument("--sys-id", required=True, help="sys_id of change to close (required)")
+    sp_close.add_argument("--result", choices=["successful", "unsuccessful"], required=True,
+                          help="result for close (required)")
 
     args = parser.parse_args()
 
     try:
-        if args.update:
-            if not args.sys_id:
-                parser.error("--sys-id is required with --update")
-            # require --state when updating
-            if not args.state:
-                parser.error("--state is required with --update")
-
-            # If state is Closed require --result and call close()
-            if args.state == "Closed":
-                if not args.result:
-                    parser.error("--result is required when --state Closed")
-                status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
-                if isinstance(data, dict):
-                    print("CLOSE_RESULT=" + data["result"]["close_code"]["value"])
-            else:
-                try:
-                    # pass selected state into update()
+        match args.command:
+            case "create":
+                status, data = create(snow_url, args.standard_change, args.assignment_group,
+                                      user, password, short_description=args.short_description, debug=debug)
+            case "update":
+                if args.state == "Closed":
+                    if not args.result:
+                        parser.error("--result is required when --state Closed")
+                    status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+                else:
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
-                except NotImplementedError as e:
-                    print(e, file=sys.stderr)
-                    sys.exit(2)
-        elif args.close:
-            # require sys-id and result when closing
-            if not args.sys_id:
-                parser.error("--sys-id is required with --close")
-            if not args.result:
-                parser.error("--result is required with --close")
-            status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+            case "close":
+                status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+            case _:
+                parser.error("unknown command")
+
+        # print summary if API returned structured "result"
+        if isinstance(data, dict) and "result" in data:
+            print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+            print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+            state = data["result"].get("state")
+            if isinstance(state, dict):
+                print("CHANGE_STATE=" + state.get("display_value", ""))
+            else:
+                print("CHANGE_STATE=" + str(state))
         else:
-            # default to create if --create or no flags
-            # require CLI args (no environment fallback)
-            snow_standard_change = args.standard_change
-            snow_assignment_group = args.assignment_group
-
-            # required when creating
-            if not snow_standard_change:
-                parser.error("--standard-change is required with --create")
-            if not snow_assignment_group:
-                parser.error("--assignment-group is required with --create")
-
-            status, data = create(snow_url, snow_standard_change, snow_assignment_group,
-                                  user, password, short_description=args.short_description, debug=debug)
-        print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-        print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-        print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
+            print("RESPONSE:", data)
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
         sys.exit(1)
