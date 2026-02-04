@@ -63,7 +63,7 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
-    # Provide empty payload bytes to force POST
+    # Provide empty payload to force POST
     return send_request(url, "POST", user, password, debug=debug)
 
 def update(snow_url, sys_id, user, password, state, debug=False):
