@@ -26,8 +26,6 @@ def send_request(url, method, user, password, payload=None, headers=None, debug=
 
     if isinstance(payload, dict):
         data = json.dumps(payload).encode("utf-8")
-    elif isinstance(payload, str):
-        data = payload.encode("utf-8")
     else:
         data = payload  # bytes or None
 
@@ -67,7 +65,7 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty bytes to force POST
-    return send_request(url, "POST", user, password, payload=b"", debug=debug)
+    return send_request(url, "POST", user, password, debug=debug)
 
 def update(snow_url, sys_id, user, password, state, debug=False):
     """
