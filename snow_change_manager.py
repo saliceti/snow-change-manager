@@ -56,8 +56,6 @@ def update(snow_url, sys_id, user, password, debug=False, fields=None):
 def main():
     debug = os.environ.get("DEBUG") == "true"
     snow_url = os.environ.get("SNOW_URL")
-    snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
-    snow_assignment_group = os.environ.get("SNOW_ASSIGNMENT_GROUP")
     user = os.environ.get("SNOW_USER")
     password = os.environ.get("SNOW_PASSWORD")
 
@@ -67,6 +65,11 @@ def main():
     group.add_argument("--update", action="store_true", help="Update an existing change")
     parser.add_argument("--sys-id", help="sys_id of change to update (required with --update)")
     parser.add_argument("--short-description", default="abcd", help="short description for create")
+
+    # New CLI options for standard change and assignment group.
+    parser.add_argument("--standard-change", help="standard change sys_id (required with --create)")
+    parser.add_argument("--assignment-group", help="assignment group sys_id (required with --create)")
+
     args = parser.parse_args()
 
     try:
@@ -85,6 +88,16 @@ def main():
                 sys.exit(2)
         else:
             # default to create if --create or no flags
+            # require CLI args (no environment fallback)
+            snow_standard_change = args.standard_change
+            snow_assignment_group = args.assignment_group
+
+            # required when creating
+            if not snow_standard_change:
+                parser.error("--standard-change is required with --create")
+            if not snow_assignment_group:
+                parser.error("--assignment-group is required with --create")
+
             status, data = create(snow_url, snow_standard_change, snow_assignment_group,
                                   user, password, short_description=args.short_description, debug=debug)
             print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
