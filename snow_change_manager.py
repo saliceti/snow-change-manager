@@ -6,7 +6,6 @@ import json
 import urllib.parse
 import urllib.request
 import urllib.error
-import getpass
 import sys
 import argparse
 
