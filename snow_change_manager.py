@@ -60,8 +60,7 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     """
     base_url = f"{snow_url}/api/sn_chg_rest/change/standard/{snow_standard_change}"
     params = {"short_description": short_description, "state": "Scheduled"}
-    if assignment_group:
-        params["assignment_group"] = assignment_group
+    params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty bytes to force POST
