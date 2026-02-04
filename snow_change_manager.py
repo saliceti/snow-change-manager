@@ -13,15 +13,15 @@ def _auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
-def send_request(url, method, user, password, payload=None, headers=None, debug=False):
+def send_request(url, method, user, password, payload=None, extra_headers=None, debug=False):
     """
     Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
     Returns (status, data) where data is parsed JSON when possible.
     """
-    hdrs = {"Accept": "application/json", "Content-Type": "application/json"}
-    if headers:
-        hdrs.update(headers)
-    hdrs["Authorization"] = _auth_header(user, password)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
+    headers["Authorization"] = _auth_header(user, password)
 
     if isinstance(payload, dict):
         data = json.dumps(payload).encode("utf-8")
