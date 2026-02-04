@@ -10,6 +10,41 @@ import getpass
 import sys
 import argparse
 
+def _auth_header(user, password):
+    creds = f"{user}:{password}".encode("utf-8")
+    return "Basic " + base64.b64encode(creds).decode("ascii")
+
+def send_request(url, method, user, password, payload=None, headers=None, debug=False):
+    """
+    Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
+    Returns (status, data) where data is parsed JSON when possible.
+    """
+    hdrs = {"Accept": "application/json", "Content-Type": "application/json"}
+    if headers:
+        hdrs.update(headers)
+    hdrs["Authorization"] = _auth_header(user, password)
+
+    if isinstance(payload, dict):
+        data = json.dumps(payload).encode("utf-8")
+    elif isinstance(payload, str):
+        data = payload.encode("utf-8")
+    else:
+        data = payload  # bytes or None
+
+    # For POST with empty body data should be b"" to enforce POST
+    req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
+    with urllib.request.urlopen(req) as resp:
+        status = resp.getcode()
+        body = resp.read().decode("utf-8")
+        try:
+            data = json.loads(body) if body else None
+        except json.JSONDecodeError:
+            data = body
+        if debug:
+            print(status)
+            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
+        return status, data
+
 def create(snow_url, snow_standard_change, assignment_group, user, password,
            short_description="abcd", debug=False):
     """
@@ -22,29 +57,8 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
         params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
-    creds = f"{user}:{password}".encode("utf-8")
-    auth_header = "Basic " + base64.b64encode(creds).decode("ascii")
-
-    headers = {
-        "Accept": "application/json",
-        "Authorization": auth_header,
-        "Content-Type": "application/json"
-    }
-
-    # Provide empty bytes to force POST with urllib
-    req = urllib.request.Request(url, data=b"", headers=headers, method="POST")
-
-    with urllib.request.urlopen(req) as resp:
-        status = resp.getcode()
-        body = resp.read().decode("utf-8")
-        try:
-            data = json.loads(body) if body else None
-        except json.JSONDecodeError:
-            data = body
-        if debug:
-            print(status)
-            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
-        return status, data
+    # Provide empty bytes to force POST
+    return send_request(url, "POST", user, password, payload=b"", debug=debug)
 
 def update(snow_url, sys_id, user, password, state, debug=False):
     """
@@ -55,33 +69,9 @@ def update(snow_url, sys_id, user, password, state, debug=False):
     if state not in ("Implement", "Review", "Closed"):
         raise ValueError("state must be one of: Implement, Review, Closed")
 
-    fields = {"state": state}
-
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
-
-    creds = f"{user}:{password}".encode("utf-8")
-    auth_header = "Basic " + base64.b64encode(creds).decode("ascii")
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": auth_header
-    }
-
-    payload = json.dumps(fields).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers=headers, method="PATCH")
-
-    with urllib.request.urlopen(req) as resp:
-        status = resp.getcode()
-        body = resp.read().decode("utf-8")
-        try:
-            data = json.loads(body) if body else None
-        except json.JSONDecodeError:
-            data = body
-        if debug:
-            print(status)
-            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
-        return status, data
+    fields = {"state": state}
+    return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
 
 def close(snow_url, sys_id, user, password, result, debug=False):
     """
@@ -100,32 +90,9 @@ def close(snow_url, sys_id, user, password, result, debug=False):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
-
-    creds = f"{user}:{password}".encode("utf-8")
-    auth_header = "Basic " + base64.b64encode(creds).decode("ascii")
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": auth_header
-    }
-
-    payload = json.dumps(fields).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers=headers, method="PATCH")
-
-    with urllib.request.urlopen(req) as resp:
-        status = resp.getcode()
-        body = resp.read().decode("utf-8")
-        try:
-            data = json.loads(body) if body else None
-        except json.JSONDecodeError:
-            data = body
-        if debug:
-            print(status)
-            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
-        return status, data
+    fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
+    return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
 
 def main():
     debug = os.environ.get("DEBUG") == "true"
@@ -169,9 +136,9 @@ def main():
                     parser.error("--result is required when --state Closed")
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
                 if isinstance(data, dict):
-                    print("UPDATE_SYS_ID=" + str(args.sys_id))
-                    print("UPDATE_STATE=Closed")
-                    print("UPDATE_RESULT=" + args.result)
+                    print("CHANGE_SYS_ID=" + str(args.sys_id))
+                    print("CHANGE_STATE=Closed")
+                    print("CLOSE_RESULT=" + args.result)
                 else:
                     print("UPDATE_RESPONSE:", data)
             else:
@@ -180,8 +147,8 @@ def main():
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
                     # If update returns a response, print something useful
                     if isinstance(data, dict):
-                        print("UPDATE_SYS_ID=" + str(args.sys_id))
-                        print("UPDATE_STATE=" + args.state)
+                        print("CHANGE_SYS_ID=" + str(args.sys_id))
+                        print("CHANGE_STATE=" + args.state)
                     else:
                         print("UPDATE_RESPONSE:", data)
                 except NotImplementedError as e:
