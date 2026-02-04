@@ -63,7 +63,7 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
     params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
-    # Provide empty bytes to force POST
+    # Provide empty payload bytes to force POST
     return send_request(url, "POST", user, password, debug=debug)
 
 def update(snow_url, sys_id, user, password, state, debug=False):
@@ -112,6 +112,21 @@ def close(snow_url, sys_id, user, password, result, debug=False):
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
 
+def get(snow_url, sys_id, user, password, debug=False):
+    """
+    Retrieve an existing change identified by sys_id.
+
+    Uses:
+      GET /api/sn_chg_rest/change/{sys_id}
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
+    Returns (status, data).
+    """
+    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+    return send_request(url, "GET", user, password, debug=debug)
+
 def main():
     debug = os.environ.get("DEBUG") == "true"
     snow_url = os.environ.get("SNOW_URL")
@@ -141,6 +156,10 @@ def main():
     sp_close.add_argument("--result", choices=["successful", "unsuccessful"], required=True,
                           help="result for close (required)")
 
+    # get subcommand: retrieve a change
+    sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id")
+    sp_get.add_argument("--sys-id", required=True, help="sys_id of change to retrieve (required)")
+
     args = parser.parse_args()
 
     try:
@@ -157,6 +176,8 @@ def main():
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
             case "close":
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+            case "get":
+                status, data = get(snow_url, args.sys_id, user, password, debug=debug)
             case _:
                 parser.error("unknown command")
 
