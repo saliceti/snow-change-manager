@@ -49,14 +49,58 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
 def update(snow_url, sys_id, user, password, state, debug=False):
     """
     Update an existing change identified by sys_id via a PATCH request.
-    state: required string, one of "Implement", "Review", "Close".
+    state: required string, one of "Implement", "Review", "Closed".
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    if state not in ("Implement", "Review", "Close"):
-        raise ValueError("state must be one of: Implement, Review, Close")
+    if state not in ("Implement", "Review", "Closed"):
+        raise ValueError("state must be one of: Implement, Review, Closed")
 
     fields = {"state": state}
 
+    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+
+    creds = f"{user}:{password}".encode("utf-8")
+    auth_header = "Basic " + base64.b64encode(creds).decode("ascii")
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": auth_header
+    }
+
+    payload = json.dumps(fields).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers=headers, method="PATCH")
+
+    with urllib.request.urlopen(req) as resp:
+        status = resp.getcode()
+        body = resp.read().decode("utf-8")
+        try:
+            data = json.loads(body) if body else None
+        except json.JSONDecodeError:
+            data = body
+        if debug:
+            print(status)
+            print(json.dumps(data, indent=2) if isinstance(data, (dict, list)) else data)
+        return status, data
+
+def close(snow_url, sys_id, user, password, result, debug=False):
+    """
+    Close an existing change identified by sys_id via a PATCH request.
+    result: "successful" or "unsuccessful" - determines close_code and close_notes.
+    Sends state="Closed" plus close_code and close_notes.
+    Returns (status, data).
+    """
+    if result not in ("successful", "unsuccessful"):
+        raise ValueError("result must be one of: successful, unsuccessful")
+
+    if result == "successful":
+        close_code = "successful"
+        close_notes = "Change completed successfully"
+    else:
+        close_code = "unsuccessful"
+        close_notes = "Change did not complete successfully"
+
+    fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
 
     creds = f"{user}:{password}".encode("utf-8")
@@ -93,7 +137,8 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--create", action="store_true", help="Create a new standard change")
     group.add_argument("--update", action="store_true", help="Update an existing change")
-    parser.add_argument("--sys-id", help="sys_id of change to update (required with --update)")
+    group.add_argument("--close", action="store_true", help="Close an existing change")
+    parser.add_argument("--sys-id", help="sys_id of change to update/close (required with --update or --close)")
     parser.add_argument("--short-description", default="abcd", help="short description for create")
 
     # New CLI options for standard change and assignment group.
@@ -101,8 +146,12 @@ def main():
     parser.add_argument("--assignment-group", help="assignment group sys_id (required with --create)")
 
     # New --state argument for update; restrict allowed values
-    parser.add_argument("--state", choices=["Implement", "Review", "Close"],
-                        help="state to set when updating (one of Implement, Review, Close)")
+    parser.add_argument("--state", choices=["Implement", "Review", "Closed"],
+                        help="state to set when updating (one of Implement, Review, Closed)")
+
+    # New --result for close
+    parser.add_argument("--result", choices=["successful", "unsuccessful"],
+                        help="result for close (required with --close)")
 
     args = parser.parse_args()
 
@@ -113,18 +162,43 @@ def main():
             # require --state when updating
             if not args.state:
                 parser.error("--state is required with --update")
-            try:
-                # pass selected state into update()
-                status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
-                # If update returns a response, print something useful
+
+            # If state is Closed require --result and call close()
+            if args.state == "Closed":
+                if not args.result:
+                    parser.error("--result is required when --state Closed")
+                status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
                 if isinstance(data, dict):
                     print("UPDATE_SYS_ID=" + str(args.sys_id))
-                    print("UPDATE_STATE=" + args.state)
+                    print("UPDATE_STATE=Closed")
+                    print("UPDATE_RESULT=" + args.result)
                 else:
                     print("UPDATE_RESPONSE:", data)
-            except NotImplementedError as e:
-                print(e, file=sys.stderr)
-                sys.exit(2)
+            else:
+                try:
+                    # pass selected state into update()
+                    status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
+                    # If update returns a response, print something useful
+                    if isinstance(data, dict):
+                        print("UPDATE_SYS_ID=" + str(args.sys_id))
+                        print("UPDATE_STATE=" + args.state)
+                    else:
+                        print("UPDATE_RESPONSE:", data)
+                except NotImplementedError as e:
+                    print(e, file=sys.stderr)
+                    sys.exit(2)
+        elif args.close:
+            # require sys-id and result when closing
+            if not args.sys_id:
+                parser.error("--sys-id is required with --close")
+            if not args.result:
+                parser.error("--result is required with --close")
+            status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+            if isinstance(data, dict):
+                print("CLOSE_SYS_ID=" + str(args.sys_id))
+                print("CLOSE_RESULT=" + args.result)
+            else:
+                print("CLOSE_RESPONSE:", data)
         else:
             # default to create if --create or no flags
             # require CLI args (no environment fallback)
