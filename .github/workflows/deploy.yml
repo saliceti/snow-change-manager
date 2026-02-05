@@ -57,7 +57,7 @@ jobs:
           ./snow_change_manager.py create \
             --short-description $SHORT_DESCRIPTION \
             --standard-change $SNOW_STANDARD_CHANGE  \
-            --assignment-group $SNOW_ASSIGNMENT_GROUP) \
+            --assignment-group $SNOW_ASSIGNMENT_GROUP \
             > snow_variables.sh
 
           echo Change created successfully and scheduled immediately
