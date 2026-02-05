@@ -112,7 +112,7 @@ jobs:
 
       - name: Run smoke tests
         run: |
-          echo Deploying software...
+          echo Testing the deployment...
           sleep 5
 
       - name: Close change
