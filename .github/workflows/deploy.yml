@@ -44,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     # needs: [unit-tests]
     # needs: [integration-tests]
+    env:
+      SNOW_URL: https://dev280175.service-now.com
     outputs:
       CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
 
@@ -74,6 +76,8 @@ jobs:
     name: Deploy to production
     runs-on: ubuntu-latest
     needs: [create-snow-change]
+    env:
+      SNOW_URL: https://dev280175.service-now.com
 
     steps:
       - name: Checkout code
