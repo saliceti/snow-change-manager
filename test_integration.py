@@ -20,10 +20,9 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         cls.snow_user = os.environ.get("SNOW_USER")
         cls.snow_password = os.environ.get("SNOW_PASSWORD")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
-        cls.snow_assignment_group = os.environ.get("SNOW_ASSIGNMENT_GROUP")
 
         missing_vars = []
-        for var in ["SNOW_URL", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE", "SNOW_ASSIGNMENT_GROUP"]:
+        for var in ["SNOW_URL", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE"]:
             if not os.environ.get(var):
                 missing_vars.append(var)
 
@@ -58,7 +57,6 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         returncode, stdout, stderr = self.run_cli(
             "create",
             "--standard-change", self.snow_standard_change,
-            "--assignment-group", self.snow_assignment_group,
             "--short-description", "Integration Test Change"
         )
 

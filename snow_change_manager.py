@@ -51,7 +51,7 @@ def get_datetime(minutes=0):
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
-def create(snow_url, snow_standard_change, assignment_group, user, password,
+def create(snow_url, snow_standard_change, user, password,
            short_description="abcd", debug=False):
     """
     Construct and POST a standard change using the provided parameters.
@@ -71,7 +71,6 @@ def create(snow_url, snow_standard_change, assignment_group, user, password,
         "start_date": get_datetime(),
         "end_date": get_datetime(60)
     }
-    params["assignment_group"] = assignment_group
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty payload to force POST
@@ -169,7 +168,6 @@ def main():
     # create subcommand
     sp_create = subparsers.add_parser("create", help="Create a new standard change")
     sp_create.add_argument("--standard-change", required=True, help="standard change sys_id (required)")
-    sp_create.add_argument("--assignment-group", required=True, help="assignment group sys_id (required)")
     sp_create.add_argument("--short-description", required=True, help="short description for create")
 
     # update subcommand
@@ -199,7 +197,7 @@ def main():
     try:
         match args.command:
             case "create":
-                status, data = create(snow_url, args.standard_change, args.assignment_group,
+                status, data = create(snow_url, args.standard_change,
                                       user, password, short_description=args.short_description, debug=debug)
             case "update":
                 if args.state == "Closed":

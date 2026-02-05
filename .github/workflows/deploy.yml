@@ -33,8 +33,7 @@ jobs:
   #       run: python test_integration.py
   #       env:
   #         SNOW_URL: https://dev280175.service-now.com
-  #         SNOW_ASSIGNMENT_GROUP: 8a5055c9c61122780043563ef53438e3
-  #         SNOW_STANDARD_CHANGE: 508e02ec47410200e90d87e8dee49058
+  #         SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
   #         SNOW_USER: ${{ secrets.SNOW_USER }}
   #         SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
@@ -59,7 +58,6 @@ jobs:
           ./snow_change_manager.py create \
             --short-description "$SHORT_DESCRIPTION" \
             --standard-change $SNOW_STANDARD_CHANGE  \
-            --assignment-group $SNOW_ASSIGNMENT_GROUP \
             > snow_variables.sh
 
           echo Change created successfully and scheduled immediately
@@ -69,8 +67,7 @@ jobs:
           echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
         env:
           SHORT_DESCRIPTION: "Deploy commit ${{github.sha}} to service X"
-          SNOW_ASSIGNMENT_GROUP: 8a5055c9c61122780043563ef53438e3
-          SNOW_STANDARD_CHANGE: 508e02ec47410200e90d87e8dee49058
+          SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
