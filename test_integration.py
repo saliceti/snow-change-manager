@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import re
+from datetime import datetime
 
 class TestSnowChangeLifecycle(unittest.TestCase):
     """
@@ -54,10 +55,11 @@ class TestSnowChangeLifecycle(unittest.TestCase):
 
     def test_01_create_change(self):
         """Test: Create a new standard change."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         returncode, stdout, stderr = self.run_cli(
             "create",
             "--standard-change", self.snow_standard_change,
-            "--short-description", "Integration Test Change"
+            "--short-description", f"Integration Test Change on {now}"
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
