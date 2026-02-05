@@ -66,7 +66,7 @@ jobs:
           source snow_variables.sh
           echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
         env:
-          SHORT_DESCRIPTION: "Deploy commit ${{github.sha}} to service X"
+          SHORT_DESCRIPTION: \"Deploy commit ${{github.sha}} to service X\"
           SNOW_ASSIGNMENT_GROUP: 8a5055c9c61122780043563ef53438e3
           SNOW_STANDARD_CHANGE: 508e02ec47410200e90d87e8dee49058
 
