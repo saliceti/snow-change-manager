@@ -4,7 +4,16 @@ on:
   push:
     branches:
       - main
-      - pipeline
+      # - pipeline
+  workflow_dispatch:
+    inputs:
+      expected_result:
+        description: Result of the deployment. Set to fail to simulate failure. The default is pass.
+        default: pass
+        type: choice
+        options:
+        - pass
+        - fail
 
 jobs:
   # unit-tests:
@@ -96,6 +105,10 @@ jobs:
         run: |
           echo Deploying software...
           sleep 5
+          if [[ "${{ inputs.expected_result }}" = "fail" ]]; then
+            echo Error: Deployment has failed.
+            exit 1
+          fi
 
       - name: Review change
         run: |
@@ -113,10 +126,17 @@ jobs:
           sleep 5
 
       - name: Close change
+        if: always()
         run: |
-          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Closed --result successful
+          if [[ "${{ job.status }}" = "success" ]]; then
+            result=successful
+          else
+            result=unsuccessful
+          fi
 
-          echo Change closed successfully
+          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Closed --result $result
+
+          echo Change closed with result: $result
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
           SNOW_USER: ${{ secrets.SNOW_USER }}
