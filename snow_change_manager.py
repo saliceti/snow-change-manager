@@ -138,6 +138,25 @@ def get(snow_url, sys_id, user, password, debug=False):
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
     return send_request(url, "GET", user, password, debug=debug)
 
+def get_template_id(snow_url, user, password, name, debug=False):
+    """
+    Retrieve a standard change template by name.
+
+    Uses:
+      GET /api/sn_chg_rest/v1/change/standard/template?sysparm_query=...
+
+    Filters for active templates matching the provided name.
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
+    Returns (status, data).
+    """
+    base_url = f"{snow_url}/api/sn_chg_rest/v1/change/standard/template"
+    query = f"active=true^name={name}"
+    url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
+    return send_request(url, "GET", user, password, debug=debug)
+
 def main():
     debug = os.environ.get("DEBUG") == "true"
     snow_url = os.environ.get("SNOW_URL")
@@ -171,6 +190,10 @@ def main():
     sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id")
     sp_get.add_argument("--sys-id", required=True, help="sys_id of change to retrieve (required)")
 
+    # get-template-id subcommand: retrieve template ID by name
+    sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
+    sp_get_template.add_argument("--name", required=True, help="template name (required)")
+
     args = parser.parse_args()
 
     try:
@@ -189,6 +212,8 @@ def main():
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
             case "get":
                 status, data = get(snow_url, args.sys_id, user, password, debug=debug)
+            case "get-template-id":
+                status, data = get_template_id(snow_url, user, password, name=args.name, debug=debug)
             case _:
                 parser.error("unknown command")
 
@@ -196,10 +221,14 @@ def main():
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
 
-        print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-        print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-        print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
-        print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
+        if args.command == "get-template-id":
+            print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+            print("TEMPLATE_NAME=\"" + args.name + "\"")
+        else:
+            print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+            print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+            print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
+            print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
