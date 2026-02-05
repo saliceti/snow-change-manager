@@ -66,7 +66,7 @@ jobs:
           source snow_variables.sh
           echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
         env:
-          SHORT_DESCRIPTION: "Deploy commit ${{github.sha}} to service X"
+          SHORT_DESCRIPTION: "Release Manage breast screening version ${{github.sha}}"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
