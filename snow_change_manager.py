@@ -199,7 +199,7 @@ def main():
         print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
         print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
         print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
-        print("CHANGE_SYS_UPDATED_ON=" + data["result"]["sys_updated_on"]["value"])
+        print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
