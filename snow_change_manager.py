@@ -198,6 +198,7 @@ def main():
     password = os.environ.get("SNOW_PASSWORD")
 
     parser = argparse.ArgumentParser(description="Create or update ServiceNow standard changes")
+    parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # create subcommand
@@ -273,25 +274,28 @@ def main():
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
 
-        match result_type:
-            case "single_change":
-                print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-                print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-                print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
-                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
-            case "change_list":
-                print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
-                print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
-                print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
-                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
-            case "template_list":
-                print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
-                print("TEMPLATE_NAME=\"" + args.name + "\"")
-            case "table_item":
-                print("CHANGE_NUMBER=" + data["result"]["number"])
-                print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
-                print("CHANGE_STATE=" + data["result"]["state"])
-                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"] + "\"")
+        if args.json:
+            print(json.dumps(data, indent=2))
+        else:
+            match result_type:
+                case "single_change":
+                    print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+                    print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+                    print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
+                    print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
+                case "change_list":
+                    print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
+                    print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
+                    print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
+                    print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
+                case "template_list":
+                    print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+                    print("TEMPLATE_NAME=\"" + args.name + "\"")
+                case "table_item":
+                    print("CHANGE_NUMBER=" + data["result"]["number"])
+                    print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
+                    print("CHANGE_STATE=" + data["result"]["state"])
+                    print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"] + "\"")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
