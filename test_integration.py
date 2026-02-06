@@ -4,8 +4,6 @@ import unittest
 import subprocess
 import os
 import sys
-import json
-import re
 from datetime import datetime
 
 class TestSnowChangeLifecycle(unittest.TestCase):
@@ -21,6 +19,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         cls.snow_user = os.environ.get("SNOW_USER")
         cls.snow_password = os.environ.get("SNOW_PASSWORD")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
+        cls.change_sys_id = None
 
         missing_vars = []
         for var in ["SNOW_URL", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE"]:
@@ -154,5 +153,20 @@ class TestSnowChangeLifecycle(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # Run tests in order (verbosity=2 for detailed output)
-    unittest.main(verbosity=2)
+    # Create a test suite with tests in order, stopping on first failure
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+
+    # Add tests in specific order
+    suite.addTest(TestSnowChangeLifecycle('test_01_create_change'))
+    suite.addTest(TestSnowChangeLifecycle('test_02_update_to_implement'))
+    suite.addTest(TestSnowChangeLifecycle('test_03_update_to_review'))
+    suite.addTest(TestSnowChangeLifecycle('test_04_close_change_successful'))
+    suite.addTest(TestSnowChangeLifecycle('test_05_get_change_final_state'))
+
+    # Run with stop on first failure
+    runner = unittest.TextTestRunner(verbosity=2, failfast=True)
+    result = runner.run(suite)
+
+    # Exit with appropriate code
+    sys.exit(0 if result.wasSuccessful() else 1)

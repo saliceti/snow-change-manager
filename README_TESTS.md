@@ -5,8 +5,7 @@
 The integration tests require:
 - A ServiceNow instance (dev/test environment recommended, NOT production)
 - Valid ServiceNow credentials
-- A standard change template sys_id
-- An assignment group sys_id
+- A standard change template sys_id. The template must have an assignment group set.
 
 ## Environment Variables
 
@@ -17,7 +16,6 @@ export SNOW_URL="https://your-instance.service-now.com"
 export SNOW_USER="your-username"
 export SNOW_PASSWORD="your-password"
 export SNOW_STANDARD_CHANGE="standard-change-sys-id"
-export SNOW_ASSIGNMENT_GROUP="assignment-group-sys-id"
 export DEBUG="true"  # Optional: set to "true" for verbose output
 ```
 
@@ -90,7 +88,7 @@ If you see: `RuntimeError: Missing required environment variables: ...`
 
 **Solution**: Ensure all 5 required env vars are set:
 ```bash
-echo $SNOW_URL $SNOW_USER $SNOW_PASSWORD $SNOW_STANDARD_CHANGE $SNOW_ASSIGNMENT_GROUP
+echo $SNOW_URL $SNOW_USER $SNOW_PASSWORD $SNOW_STANDARD_CHANGE
 ```
 
 ### Authentication Failed (401/403)
@@ -104,12 +102,6 @@ If the CLI returns `404 Not Found`:
 - Verify SNOW_STANDARD_CHANGE sys_id is correct
 - Ensure the template exists in your ServiceNow instance
 - Check that the user has permission to access it
-
-### Assignment Group Not Found
-If the create step fails with an assignment group error:
-- Verify SNOW_ASSIGNMENT_GROUP sys_id is correct
-- Ensure the assignment group exists and is active
-- Check user permissions for the group
 
 ### State Transitions Invalid
 If an update step fails with state validation error:
