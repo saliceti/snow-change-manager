@@ -234,10 +234,12 @@ def main():
     try:
         match args.command:
             case "create":
+                print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
                                       user, password, short_description=args.short_description)
                 result_type = "single_change"
             case "update":
+                print(f"Updating change {args.sys_id} with state {args.state}...")
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
@@ -246,19 +248,24 @@ def main():
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state)
                 result_type = "single_change"
             case "close":
+                print(f"Closing change {args.sys_id} with result {args.result}...")
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
+                    print(f"Retrieving change with sys_id {args.sys_id}...")
                     status, data = get_by_sys_id(snow_url, args.sys_id, user, password)
                     result_type = "single_change"
                 else:
+                    print(f"Retrieving change with number {args.number}...")
                     status, data = get_by_number(snow_url, args.number, user, password)
                     result_type = "change_list"
             case "get-template-id":
+                print(f"Retrieving template \"{args.name}\"...")
                 status, data = get_template_id(snow_url, user, password, name=args.name)
                 result_type = "template_list"
             case "post-comment":
+                print(f"Posting comment...")
                 status, data = post_comment(snow_url, args.sys_id, user, password, comment=args.comment)
                 result_type = "table_item"
             case _:
@@ -267,6 +274,8 @@ def main():
         if status != 200:
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
+        else:
+            print("The request was successful")
 
         if args.json:
             print(json.dumps(data, indent=2))
