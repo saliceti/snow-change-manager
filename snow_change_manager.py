@@ -175,6 +175,22 @@ def get_template_id(snow_url, user, password, name, debug=False):
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", user, password, debug=debug)
 
+def post_comment(snow_url, sys_id, user, password, comment, debug=False):
+    """
+    Post a comment to a change request using the Table API.
+
+    Uses:
+      PATCH /api/now/table/change_request/{sys_id}
+
+    See ServiceNow Table API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/c_TableAPI.html
+
+    Returns (status, data).
+    """
+    url = f"{snow_url}/api/now/table/change_request/{sys_id}"
+    payload = {"comments": comment}
+    return send_request(url, "PATCH", user, password, payload=payload, debug=debug)
+
 def main():
     debug = os.environ.get("DEBUG") == "true"
     snow_url = os.environ.get("SNOW_URL")
@@ -213,6 +229,11 @@ def main():
     sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
     sp_get_template.add_argument("--name", required=True, help="template name (required)")
 
+    # post-comment subcommand: post a comment to a change
+    sp_post_comment = subparsers.add_parser("post-comment", help="Post a comment to a change request")
+    sp_post_comment.add_argument("--sys-id", required=True, help="sys_id of change to comment on (required)")
+    sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
+
     args = parser.parse_args()
 
     try:
@@ -220,6 +241,7 @@ def main():
             case "create":
                 status, data = create(snow_url, args.standard_change,
                                       user, password, short_description=args.short_description, debug=debug)
+                result_type = "single_change"
             case "update":
                 if args.state == "Closed":
                     if not args.result:
@@ -227,15 +249,23 @@ def main():
                     status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
                 else:
                     status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
+                result_type = "single_change"
             case "close":
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+                result_type = "single_change"
             case "get":
                 if args.sys_id:
                     status, data = get_by_sys_id(snow_url, args.sys_id, user, password, debug=debug)
+                    result_type = "single_change"
                 else:
                     status, data = get_by_number(snow_url, args.number, user, password, debug=debug)
+                    result_type = "change_list"
             case "get-template-id":
                 status, data = get_template_id(snow_url, user, password, name=args.name, debug=debug)
+                result_type = "template_list"
+            case "post-comment":
+                status, data = post_comment(snow_url, args.sys_id, user, password, comment=args.comment, debug=debug)
+                result_type = "table_item"
             case _:
                 parser.error("unknown command")
 
@@ -243,20 +273,25 @@ def main():
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
 
-        if args.command == "get-template-id":
-            print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
-            print("TEMPLATE_NAME=\"" + args.name + "\"")
-        else:
-            if isinstance(data["result"], list):
-                # get() has a filter in the query and return a list of 1 single change
-                change_data = data["result"][0]
-            else:
-                # post and patch actions return the single change
-                change_data = data["result"]
-            print("CHANGE_NUMBER=" + change_data["number"]["value"])
-            print("CHANGE_SYS_ID=" + change_data["sys_id"]["value"])
-            print("CHANGE_STATE=" + change_data["state"]["display_value"])
-            print("CHANGE_SYS_UPDATED_ON=\"" + change_data["sys_updated_on"]["value"] + "\"")
+        match result_type:
+            case "single_change":
+                print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
+                print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
+                print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
+                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
+            case "change_list":
+                print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
+                print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
+                print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
+                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
+            case "template_list":
+                print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+                print("TEMPLATE_NAME=\"" + args.name + "\"")
+            case "table_item":
+                print("CHANGE_NUMBER=" + data["result"]["number"])
+                print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
+                print("CHANGE_STATE=" + data["result"]["state"])
+                print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"] + "\"")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
