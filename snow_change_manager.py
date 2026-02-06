@@ -14,7 +14,7 @@ def _auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
-def send_request(url, method, user, password, payload=None, extra_headers=None, debug=False):
+def send_request(url, method, user, password, payload=None, extra_headers=None):
     """
     Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
     Returns (status, data) where data is parsed JSON when possible.
@@ -36,10 +36,6 @@ def send_request(url, method, user, password, payload=None, extra_headers=None, 
         body = resp.read().decode("utf-8")
         try:
             data = json.loads(body) if body else None
-
-            if debug:
-                print(f"RESPONSE_STATUS={status}")
-                print("RESPONSE=" + json.dumps(data, indent=2))
         except json.JSONDecodeError:
             print("Error decoding JSON response:" + body)
             sys.exit(1)
@@ -51,8 +47,7 @@ def get_datetime(minutes=0):
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
-def create(snow_url, snow_standard_change, user, password,
-           short_description="abcd", debug=False):
+def create(snow_url, snow_standard_change, user, password, short_description):
     """
     Construct and POST a standard change using the provided parameters.
 
@@ -74,9 +69,9 @@ def create(snow_url, snow_standard_change, user, password,
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty payload to force POST
-    return send_request(url, "POST", user, password, debug=debug)
+    return send_request(url, "POST", user, password)
 
-def update(snow_url, sys_id, user, password, state, debug=False):
+def update(snow_url, sys_id, user, password, state):
     """
     Update an existing change identified by sys_id via a PATCH request.
 
@@ -94,9 +89,9 @@ def update(snow_url, sys_id, user, password, state, debug=False):
 
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
     fields = {"state": state}
-    return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
+    return send_request(url, "PATCH", user, password, payload=fields)
 
-def close(snow_url, sys_id, user, password, result, debug=False):
+def close(snow_url, sys_id, user, password, result):
     """
     Close an existing change identified by sys_id via a PATCH request.
 
@@ -120,9 +115,9 @@ def close(snow_url, sys_id, user, password, result, debug=False):
 
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
-    return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
+    return send_request(url, "PATCH", user, password, payload=fields)
 
-def get_by_sys_id(snow_url, sys_id, user, password, debug=False):
+def get_by_sys_id(snow_url, sys_id, user, password):
     """
     Retrieve an existing change identified by sys_id.
 
@@ -135,9 +130,9 @@ def get_by_sys_id(snow_url, sys_id, user, password, debug=False):
     Returns (status, data).
     """
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
-    return send_request(url, "GET", user, password, debug=debug)
+    return send_request(url, "GET", user, password)
 
-def get_by_number(snow_url, number, user, password, debug=False):
+def get_by_number(snow_url, number, user, password):
     """
     Retrieve an existing change identified by number.
 
@@ -154,9 +149,9 @@ def get_by_number(snow_url, number, user, password, debug=False):
     base_url = f"{snow_url}/api/sn_chg_rest/change"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", user, password, debug=debug)
+    return send_request(url, "GET", user, password)
 
-def get_template_id(snow_url, user, password, name, debug=False):
+def get_template_id(snow_url, user, password, name):
     """
     Retrieve a standard change template by name.
 
@@ -173,9 +168,9 @@ def get_template_id(snow_url, user, password, name, debug=False):
     base_url = f"{snow_url}/api/sn_chg_rest/v1/change/standard/template"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", user, password, debug=debug)
+    return send_request(url, "GET", user, password)
 
-def post_comment(snow_url, sys_id, user, password, comment, debug=False):
+def post_comment(snow_url, sys_id, user, password, comment):
     """
     Post a comment to a change request using the Table API.
 
@@ -189,10 +184,9 @@ def post_comment(snow_url, sys_id, user, password, comment, debug=False):
     """
     url = f"{snow_url}/api/now/table/change_request/{sys_id}"
     payload = {"comments": comment}
-    return send_request(url, "PATCH", user, password, payload=payload, debug=debug)
+    return send_request(url, "PATCH", user, password, payload=payload)
 
 def main():
-    debug = os.environ.get("DEBUG") == "true"
     snow_url = os.environ.get("SNOW_URL")
     user = os.environ.get("SNOW_USER")
     password = os.environ.get("SNOW_PASSWORD")
@@ -241,31 +235,31 @@ def main():
         match args.command:
             case "create":
                 status, data = create(snow_url, args.standard_change,
-                                      user, password, short_description=args.short_description, debug=debug)
+                                      user, password, short_description=args.short_description)
                 result_type = "single_change"
             case "update":
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
-                    status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+                    status, data = close(snow_url, args.sys_id, user, password, result=args.result)
                 else:
-                    status, data = update(snow_url, args.sys_id, user, password, state=args.state, debug=debug)
+                    status, data = update(snow_url, args.sys_id, user, password, state=args.state)
                 result_type = "single_change"
             case "close":
-                status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
+                status, data = close(snow_url, args.sys_id, user, password, result=args.result)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
-                    status, data = get_by_sys_id(snow_url, args.sys_id, user, password, debug=debug)
+                    status, data = get_by_sys_id(snow_url, args.sys_id, user, password)
                     result_type = "single_change"
                 else:
-                    status, data = get_by_number(snow_url, args.number, user, password, debug=debug)
+                    status, data = get_by_number(snow_url, args.number, user, password)
                     result_type = "change_list"
             case "get-template-id":
-                status, data = get_template_id(snow_url, user, password, name=args.name, debug=debug)
+                status, data = get_template_id(snow_url, user, password, name=args.name)
                 result_type = "template_list"
             case "post-comment":
-                status, data = post_comment(snow_url, args.sys_id, user, password, comment=args.comment, debug=debug)
+                status, data = post_comment(snow_url, args.sys_id, user, password, comment=args.comment)
                 result_type = "table_item"
             case _:
                 parser.error("unknown command")
