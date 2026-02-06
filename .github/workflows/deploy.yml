@@ -74,6 +74,11 @@ jobs:
 
           source snow_variables.sh
           echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
+
+          WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "Link to Github action workflow run: $WORKFLOW_RUN_LINK"
         env:
           SHORT_DESCRIPTION: "Release Manage breast screening version ${{github.sha}}"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
