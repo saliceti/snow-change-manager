@@ -122,7 +122,7 @@ def close(snow_url, sys_id, user, password, result, debug=False):
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     return send_request(url, "PATCH", user, password, payload=fields, debug=debug)
 
-def get(snow_url, sys_id, user, password, debug=False):
+def get_by_sys_id(snow_url, sys_id, user, password, debug=False):
     """
     Retrieve an existing change identified by sys_id.
 
@@ -135,6 +135,25 @@ def get(snow_url, sys_id, user, password, debug=False):
     Returns (status, data).
     """
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+    return send_request(url, "GET", user, password, debug=debug)
+
+def get_by_number(snow_url, number, user, password, debug=False):
+    """
+    Retrieve an existing change identified by number.
+
+    Uses:
+      GET /api/sn_chg_rest/change?sysparm_query=...
+
+    Filters for the change matching the provided number (e.g., CHG0030052).
+
+    See ServiceNow Change Management API docs for details:
+    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+
+    Returns (status, data).
+    """
+    base_url = f"{snow_url}/api/sn_chg_rest/change"
+    query = f"number={urllib.parse.quote(number)}"
+    url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", user, password, debug=debug)
 
 def get_template_id(snow_url, user, password, name, debug=False):
@@ -185,8 +204,10 @@ def main():
                           help="result for close (required)")
 
     # get subcommand: retrieve a change
-    sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id")
-    sp_get.add_argument("--sys-id", required=True, help="sys_id of change to retrieve (required)")
+    sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id or number")
+    group = sp_get.add_mutually_exclusive_group(required=True)
+    group.add_argument("--sys-id", help="sys_id of change to retrieve")
+    group.add_argument("--number", help="number of change to retrieve (e.g., CHG0030052)")
 
     # get-template-id subcommand: retrieve template ID by name
     sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
@@ -209,7 +230,10 @@ def main():
             case "close":
                 status, data = close(snow_url, args.sys_id, user, password, result=args.result, debug=debug)
             case "get":
-                status, data = get(snow_url, args.sys_id, user, password, debug=debug)
+                if args.sys_id:
+                    status, data = get_by_sys_id(snow_url, args.sys_id, user, password, debug=debug)
+                else:
+                    status, data = get_by_number(snow_url, args.number, user, password, debug=debug)
             case "get-template-id":
                 status, data = get_template_id(snow_url, user, password, name=args.name, debug=debug)
             case _:
@@ -223,10 +247,16 @@ def main():
             print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
             print("TEMPLATE_NAME=\"" + args.name + "\"")
         else:
-            print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-            print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-            print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
-            print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
+            if isinstance(data["result"], list):
+                # get() has a filter in the query and return a list of 1 single change
+                change_data = data["result"][0]
+            else:
+                # post and patch actions return the single change
+                change_data = data["result"]
+            print("CHANGE_NUMBER=" + change_data["number"]["value"])
+            print("CHANGE_SYS_ID=" + change_data["sys_id"]["value"])
+            print("CHANGE_STATE=" + change_data["state"]["display_value"])
+            print("CHANGE_SYS_UPDATED_ON=\"" + change_data["sys_updated_on"]["value"] + "\"")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
