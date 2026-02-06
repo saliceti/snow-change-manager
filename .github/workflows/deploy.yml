@@ -1,10 +1,10 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - main
-      - pipeline
+  # push:
+  #   branches:
+  #     - main
+  #     - pipeline
   workflow_dispatch:
     inputs:
       expected_result:
