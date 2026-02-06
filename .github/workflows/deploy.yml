@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      # - pipeline
+      - pipeline
   workflow_dispatch:
     inputs:
       expected_result:
@@ -86,6 +86,8 @@ jobs:
     needs: [create-snow-change]
     env:
       SNOW_URL: https://dev280175.service-now.com
+    outputs:
+      CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
     steps:
       - name: Checkout code
@@ -111,10 +113,14 @@ jobs:
           fi
 
       - name: Review change
+        if: always()
         run: |
           ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
 
-          echo Change updated successfully. Ready for review.
+          # if [[ "${{ github.job.status}}" ]]; then
+          # fi
+
+          echo Change updated successfully
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
           SNOW_USER: ${{ secrets.SNOW_USER }}
@@ -125,10 +131,21 @@ jobs:
           echo Testing the deployment...
           sleep 5
 
+  close-change:
+    name: Close ServiceNow change
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    env:
+      SNOW_URL: https://dev280175.service-now.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
       - name: Close change
         if: always()
         run: |
-          if [[ "${{ job.status }}" = "success" ]]; then
+          if [[ "${{ needs.deploy.result }}" = "success" ]]; then
             result=successful
           else
             result=unsuccessful
@@ -138,6 +155,6 @@ jobs:
 
           echo Change closed with result: $result
         env:
-          CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+          CHANGE_SYS_ID: ${{ needs.deploy.outputs.CHANGE_SYS_ID }}
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
