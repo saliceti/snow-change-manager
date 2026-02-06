@@ -78,7 +78,7 @@ jobs:
           WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ./snow_change_manager.py post-comment \
             --sys-id $CHANGE_SYS_ID \
-            --comment "Link to Github action workflow run: $WORKFLOW_RUN_LINK"
+            --comment "Link to [code]<a href="$WORKFLOW_RUN_LINK" target="_blank">Github action workflow run ${{ github.run_id }}</a>[/code]"
         env:
           SHORT_DESCRIPTION: "Release Manage breast screening version ${{github.sha}}"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
