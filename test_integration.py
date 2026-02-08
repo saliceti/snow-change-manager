@@ -5,6 +5,7 @@ import subprocess
 import os
 import sys
 from datetime import datetime
+import json
 
 class TestSnowChangeLifecycle(unittest.TestCase):
     """
@@ -64,20 +65,29 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
         output = self.parse_cli_output(stdout)
 
-        # Validate required fields
-        self.assertIn("CHANGE_NUMBER", output, "CHANGE_NUMBER not in response")
-        self.assertIn("CHANGE_SYS_ID", output, "CHANGE_SYS_ID not in response")
-        self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
-
         # Store sys_id for subsequent tests
         self.change_sys_id = output["CHANGE_SYS_ID"]
         self.__class__.change_sys_id = self.change_sys_id
 
-        print(f"\n✓ Created change: {output['CHANGE_NUMBER']} ({self.change_sys_id})")
+
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--sys-id", self.change_sys_id,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+        self.assertEqual(data["result"]["sys_id"]["value"], output["CHANGE_SYS_ID"])
+        self.assertEqual(data["result"]["number"]["value"], output['CHANGE_NUMBER'])
+        self.assertEqual(data["result"]["state"]["display_value"], "Scheduled")
+
+        print(f"\n✓ Created change: {output['CHANGE_NUMBER']} ({self.change_sys_id}) with state: Scheduled")
 
     def test_02_update_to_implement(self):
         """Test: Update change state to Implement."""
         change_sys_id = self.__class__.change_sys_id
+
         self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
@@ -87,10 +97,18 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-        output = self.parse_cli_output(stdout)
 
-        self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
-        self.assertEqual(output["CHANGE_STATE"], "Implement", f"Expected state 'Implement', got '{output['CHANGE_STATE']}'")
+
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--sys-id", change_sys_id,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
+        self.assertEqual(data["result"]["state"]["display_value"], "Implement")
 
         print(f"✓ Updated change to Implement")
 
@@ -106,10 +124,17 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-        output = self.parse_cli_output(stdout)
 
-        self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
-        self.assertEqual(output["CHANGE_STATE"], "Review", f"Expected state 'Review', got '{output['CHANGE_STATE']}'")
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--sys-id", change_sys_id,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
+        self.assertEqual(data["result"]["state"]["display_value"], "Review")
 
         print(f"✓ Updated change to Review")
 
@@ -126,18 +151,27 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-        output = self.parse_cli_output(stdout)
-
-        self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
-        self.assertEqual(output["CHANGE_STATE"], "Closed", f"Expected state 'Closed', got '{output['CHANGE_STATE']}'")
 
         print(f"✓ Closed change successfully")
+
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--sys-id", change_sys_id,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
+        self.assertEqual(data["result"]["state"]["display_value"], "Closed")
+        self.assertEqual(data["result"]["close_code"]["value"], "successful")
 
     def test_05_get_change_final_state(self):
         """Test: Retrieve final change state via GET."""
         change_sys_id = self.__class__.change_sys_id
         self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
 
+        # Verify via GET standard output
         returncode, stdout, stderr = self.run_cli(
             "get",
             "--sys-id", change_sys_id
@@ -149,8 +183,18 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
         self.assertEqual(output["CHANGE_STATE"], "Closed", f"Expected final state 'Closed', got '{output['CHANGE_STATE']}'")
 
-        print(f"✓ Verified final change state is Closed")
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--sys-id", change_sys_id,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+        self.assertEqual(data["result"]["state"]["display_value"], "Closed")
+        self.assertEqual(data["result"]["close_code"]["value"], "successful")
 
+        print(f"✓ Verified final change state is Closed")
 
 if __name__ == "__main__":
     # Create a test suite with tests in order, stopping on first failure
