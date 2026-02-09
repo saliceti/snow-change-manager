@@ -50,6 +50,8 @@ jobs:
     name: Create ServiceNow change
     runs-on: ubuntu-latest
     needs: [integration-tests]
+    permissions:
+      contents: write
     env:
       SNOW_URL: https://dev280175.service-now.com
     outputs:
