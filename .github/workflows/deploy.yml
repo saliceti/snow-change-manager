@@ -27,7 +27,7 @@ jobs:
       - name: Run unit tests 1
         run: |
           echo Running unit tests 1...
-          sleep 5
+          # sleep 5
 
   integration-tests:
     name: Run integration tests
@@ -126,12 +126,20 @@ jobs:
 
           if [[ "${{ inputs.expected_result }}" = "fail" ]]; then
             echo Error: Deployment has failed. | tee -a deployment.log
-            echo "$(cat deployment.log)" >> $GITHUB_OUTPUT
+            {
+              echo 'LOG<<EOF'
+              $(cat deployment.log)
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
           echo Deployed software successfully | tee -a deployment.log
-          echo "LOG=$(cat deployment.log)" >> $GITHUB_OUTPUT
+          {
+            echo 'LOG<<EOF'
+            $(cat deployment.log)
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
       - name: Review change
         if: always()
