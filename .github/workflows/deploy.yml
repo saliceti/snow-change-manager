@@ -88,7 +88,7 @@ jobs:
             --sys-id $CHANGE_SYS_ID \
             --comment "Link to [code]<a href="$WORKFLOW_RUN_LINK" target="_blank">Github action workflow run ${{ github.run_id }}</a>[/code]"
         env:
-          SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}} (${{github.sha}})"
+          SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}} (commit ${{github.sha}})"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
