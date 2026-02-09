@@ -137,7 +137,7 @@ jobs:
           echo Deployed software successfully | tee -a deployment.log
           {
             echo 'LOG<<EOF'
-            $(cat deployment.log)
+            cat deployment.log
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
