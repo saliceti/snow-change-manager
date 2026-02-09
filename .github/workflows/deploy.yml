@@ -46,21 +46,6 @@ jobs:
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
-  create-tag:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: '0'
-
-    - name: Bump version and push tag
-      uses: anothrNick/github-tag-action@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAG_PREFIX: v
-
   create-snow-change:
     name: Create ServiceNow change
     runs-on: ubuntu-latest
@@ -76,6 +61,7 @@ jobs:
 
       - name: Bump version and push tag
         uses: anothrNick/github-tag-action@v1
+        id: tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_PREFIX: v
@@ -86,6 +72,7 @@ jobs:
           ./snow_change_manager.py create \
             --short-description "$SHORT_DESCRIPTION" \
             --standard-change $SNOW_STANDARD_CHANGE  \
+            | grep '=' \
             > snow_variables.sh
 
           echo Change created successfully and scheduled immediately
@@ -99,7 +86,7 @@ jobs:
             --sys-id $CHANGE_SYS_ID \
             --comment "Link to [code]<a href="$WORKFLOW_RUN_LINK" target="_blank">Github action workflow run ${{ github.run_id }}</a>[/code]"
         env:
-          SHORT_DESCRIPTION: "Release Manage breast screening version ${{github.sha}}"
+          SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}} (${{github.sha}})"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}

@@ -62,7 +62,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             "--short-description", f"Integration Test Change on {now}"
         )
 
-        self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
+        self.assertEqual(returncode, 0, f"CLI failed: {stderr}\nOutput:\n{stdout}")
         output = self.parse_cli_output(stdout)
 
         # Store sys_id for subsequent tests
