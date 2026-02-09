@@ -119,23 +119,37 @@ jobs:
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
       - name: Deploy software
+        id: deploy-software
         run: |
-          echo Deploying software...
+          echo Deploying software... | tee -a deployment.log
           sleep 5
+
           if [[ "${{ inputs.expected_result }}" = "fail" ]]; then
-            echo Error: Deployment has failed.
+            echo Error: Deployment has failed. | tee -a deployment.log
+            echo "$(cat deployment.log)" >> $GITHUB_OUTPUT
             exit 1
           fi
+
+          echo Deployed software successfully | tee -a deployment.log
+          echo "LOG=$(cat deployment.log)" >> $GITHUB_OUTPUT
 
       - name: Review change
         if: always()
         run: |
           ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
 
-          # if [[ "${{ github.job.status}}" ]]; then
-          # fi
+          if [[ "${{ github.job.status}}" == "success" ]]; then
+            message="The deployment was successul"
+          else
+            message="The deployment was unsuccessul"
+          fi
 
-          echo Change updated successfully
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "$message
+            Deployment log:
+            ${{ steps.deploy-software.outputs.LOG}}"
+
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
           SNOW_USER: ${{ secrets.SNOW_USER }}
