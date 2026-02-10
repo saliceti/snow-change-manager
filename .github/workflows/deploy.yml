@@ -35,10 +35,11 @@ jobs:
         run: |
           import json,os
           commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
-          commits_text = ""
+          commits_text = "List of pushed commits:"
           for c in commit_list:
-            commits_text += f"{c['id']} by {c['author']['username']}:\n"
-            commits_text += f"{c['message']}\n"
+            commits_text += f"- {c['id']} by {c['author']['username']}:\n"
+            commits_text += f"- {c['message']}\n"
+            commits_text += f"\n"
           # print([c["id"] for c in commit_list])
           print(commits_text)
         env:
