@@ -147,7 +147,7 @@ jobs:
           # ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
           echo github.job.status = ${{ github.job.status}}
           exit 1
-          if [[ "${{ github.job.status}}" == "success" ]]; then
+          if [[ "${{ job.status}}" == "success" ]]; then
             message="The deployment was successul"
           else
             message="The deployment was unsuccessul"
