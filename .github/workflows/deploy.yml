@@ -28,7 +28,7 @@ jobs:
         run: |
           echo Running unit tests 1...
           # sleep 5
-          echo ${{ github.event }}
+          echo ${{ toJSON(github.event) }}
 
   # integration-tests:
   #   name: Run integration tests
