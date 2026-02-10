@@ -152,6 +152,8 @@ jobs:
             message="The deployment was successul"
           fi
 
+          echo "$message"
+
           ./snow_change_manager.py post-comment \
             --sys-id $CHANGE_SYS_ID \
             --comment "$message
