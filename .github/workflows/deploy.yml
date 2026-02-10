@@ -40,12 +40,11 @@ jobs:
           for c in commit_list:
             commit_text += f"- {c['id']} by {c['author']['username']}:\n"
             commit_text += f"{c['message']}\n"
-            commit_text += f"\n"
 
           print(commit_text)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
             print(f'COMMIT_TEXT<<EOF', file=output_file)
-            print(commit_text)
+            print(commit_text, file=output_file)
             print('EOF', file=output_file)
         env:
           COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
