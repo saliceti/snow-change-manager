@@ -71,24 +71,24 @@ jobs:
       - name: Create and schedule change
         id: create-change
         run: |
-          ./snow_change_manager.py create \
-            --short-description "$SHORT_DESCRIPTION" \
-            --standard-change $SNOW_STANDARD_CHANGE  \
-            | grep '=' \
-            > snow_variables.sh
+          # ./snow_change_manager.py create \
+          #   --short-description "$SHORT_DESCRIPTION" \
+          #   --standard-change $SNOW_STANDARD_CHANGE  \
+          #   | grep '=' \
+          #   > snow_variables.sh
 
           echo Change created successfully and scheduled immediately
-          cat snow_variables.sh
+          # cat snow_variables.sh
 
-          source snow_variables.sh
-          echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
+          # source snow_variables.sh
+          # echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
 
-          WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ./snow_change_manager.py post-comment \
-            --sys-id $CHANGE_SYS_ID \
-            --comment "Commit SHA: ${{github.sha}}
-            Link to [code]<a href=\"$WORKFLOW_RUN_LINK\" target=\"_blank\">Github action workflow</a>[/code]
-            Triggered by ${{github.actor}}"
+          # WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # ./snow_change_manager.py post-comment \
+          #   --sys-id $CHANGE_SYS_ID \
+          #   --comment "Commit SHA: ${{github.sha}}
+          #   Link to [code]<a href=\"$WORKFLOW_RUN_LINK\" target=\"_blank\">Github action workflow</a>[/code]
+          #   Triggered by ${{github.actor}}"
         env:
           SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}}"
           SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
@@ -110,7 +110,7 @@ jobs:
 
       - name: Start change
         run: |
-          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Implement
+          # ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Implement
 
           echo Change started successfully. Ready for deployment.
         env:
@@ -144,8 +144,9 @@ jobs:
       - name: Review change
         if: always()
         run: |
-          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
-
+          # ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
+          echo github.job.status = ${{ github.job.status}}
+          exit 1
           if [[ "${{ github.job.status}}" == "success" ]]; then
             message="The deployment was successul"
           else
