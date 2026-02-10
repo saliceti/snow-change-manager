@@ -286,19 +286,23 @@ def main():
                     print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
                     print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"]["sys_id"]["value"]}")
                 case "change_list":
                     print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
                     print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
                     print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"][0]["sys_id"]["value"]}")
                 case "template_list":
                     print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
                     print("TEMPLATE_NAME=\"" + args.name + "\"")
+                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={data["result"][0]["sys_id"]["value"]}")
                 case "table_item":
                     print("CHANGE_NUMBER=" + data["result"]["number"])
                     print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
                     print("CHANGE_STATE=" + data["result"]["state"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"] + "\"")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"]["sys_id"]}")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
