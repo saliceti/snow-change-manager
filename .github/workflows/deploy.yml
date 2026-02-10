@@ -34,7 +34,7 @@ jobs:
         shell: python -u {0}
         run: |
           import json
-          commit_list = json.loads(${{ toJSON(github.event.commits) }})
+          commit_list = json.loads('${{ toJSON(github.event.commits) }}')
           print([c["id"] for c in commit_list])
 
   # integration-tests:
