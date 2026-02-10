@@ -31,19 +31,28 @@ jobs:
           echo '${{ toJSON(github.event) }}'
 
       - name: List commits
+        id: commit-list
         shell: python -u {0}
         run: |
           import json,os
           commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
-          commits_text = "List of pushed commits:\n"
+          commit_text = "List of pushed commits:\n"
           for c in commit_list:
-            commits_text += f"- {c['id']} by {c['author']['username']}:\n"
-            commits_text += f"{c['message']}\n"
-            commits_text += f"\n"
-          # print([c["id"] for c in commit_list])
-          print(commits_text)
+            commit_text += f"- {c['id']} by {c['author']['username']}:\n"
+            commit_text += f"{c['message']}\n"
+            commit_text += f"\n"
+
+          print(commit_text)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
+            print(f'COMMIT_TEXT<<EOF', file=output_file)
+            print(commit_text)
+            print('EOF', file=output_file)
         env:
           COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
+
+      - name: Print output
+        run: echo '${{ steps.commit-list.outputs.COMMIT_TEXT}}'
+
 
   # integration-tests:
   #   name: Run integration tests
