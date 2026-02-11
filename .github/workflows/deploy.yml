@@ -200,7 +200,7 @@ jobs:
           sleep 5
 
           if [[ "${{ inputs.test_result }}" = "fail" ]]; then
-            echo Error: The smoke test has failed. | tee -a test.log
+            echo Error: The smoke tests 1,2,3 have failed. | tee -a test.log
             {
               echo 'LOG<<EOF'
               cat test.log
@@ -209,7 +209,7 @@ jobs:
             exit 1
           fi
 
-          echo The smoke test was successful | tee -a test.log
+          echo The smoke tests 1,2,3 were successful | tee -a test.log
           {
             echo 'LOG<<EOF'
             cat test.log
@@ -218,8 +218,6 @@ jobs:
 
       - name: Update change
         run: |
-          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
-
           if [[ "${{ job.status }}" != "success" ]]; then
             message="The test was unsuccessul"
           else
