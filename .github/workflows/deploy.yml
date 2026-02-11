@@ -85,7 +85,7 @@ jobs:
           if commit_list is None:
             sys.exit(0)
           commit_text = "List of pushed commits:\n"
-          for c in commit_list if commit_list is not None:
+          for c in commit_list:
             commit_text += f"- {c['id']} by {c['author']['username']}:\n"
             commit_text += f"{c['message']}\n"
 
