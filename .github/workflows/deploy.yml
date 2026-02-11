@@ -6,8 +6,15 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      expected_result:
-        description: Result of the deployment. Set to fail to simulate failure. The default is pass.
+      deployment_result:
+        description: Result of the deployment. Set to fail to simulate deployment failure. The default is pass.
+        default: pass
+        type: choice
+        options:
+        - pass
+        - fail
+      test_result:
+        description: Result of the smoke test. Set to fail to simulate test failure. The default is pass.
         default: pass
         type: choice
         options:
@@ -146,7 +153,7 @@ jobs:
           echo Deploying software... | tee -a deployment.log
           sleep 5
 
-          if [[ "${{ inputs.expected_result }}" = "fail" ]]; then
+          if [[ "${{ inputs.deployment_result }}" = "fail" ]]; then
             echo Error: Deployment has failed. | tee -a deployment.log
             {
               echo 'LOG<<EOF'
@@ -186,10 +193,50 @@ jobs:
           SNOW_USER: ${{ secrets.SNOW_USER }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
-      - name: Run smoke tests
+      - name: Run smoke test
+        id: smoke-test
         run: |
-          echo Testing the deployment...
+          echo Testing the deployment... | tee -a test.log
           sleep 5
+
+          if [[ "${{ inputs.test_result }}" = "fail" ]]; then
+            echo Error: The smoke test has failed. | tee -a test.log
+            {
+              echo 'LOG<<EOF'
+              cat test.log
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo The smoke test was successful | tee -a test.log
+          {
+            echo 'LOG<<EOF'
+            cat test.log
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update change
+        run: |
+          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
+
+          if [[ "${{ job.status }}" != "success" ]]; then
+            message="The test was unsuccessul"
+          else
+            message="The test was successul"
+          fi
+
+          echo "$message"
+
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "$message
+            Smoke test log:
+            ${{ steps.smoke-test.outputs.LOG}}"
+        env:
+          CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+          SNOW_USER: ${{ secrets.SNOW_USER }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
   close-change:
     name: Close ServiceNow change
