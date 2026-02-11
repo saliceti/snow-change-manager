@@ -219,6 +219,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update change
+        if: always() && steps.deploy-software.outcome == 'success'
         run: |
           if [[ "${{ job.status }}" != "success" ]]; then
             message="The test was unsuccessul"
