@@ -88,7 +88,7 @@ def update(snow_url, sys_id, user, password, state):
         raise ValueError("state must be one of: Implement, Review, Closed")
 
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
-    fields = {"state": state}
+    fields = {"state": state} # Add work note here?
     return send_request(url, "PATCH", user, password, payload=fields)
 
 def close(snow_url, sys_id, user, password, result):
@@ -183,7 +183,7 @@ def post_comment(snow_url, sys_id, user, password, comment):
     Returns (status, data).
     """
     url = f"{snow_url}/api/now/table/change_request/{sys_id}"
-    payload = {"comments": comment}
+    payload = {"comments": comment} # work notes
     return send_request(url, "PATCH", user, password, payload=payload)
 
 def main():
