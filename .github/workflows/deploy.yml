@@ -22,7 +22,7 @@ on:
         - fail
 
 env:
-  SNOW_HOST: ${{ secrets.SNOW_HOST }}
+  SNOW_HOST: dev185914.service-now.com
   SNOW_USER: ${{ secrets.SNOW_USER }}
   SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
   SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
@@ -144,7 +144,7 @@ jobs:
             summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
             summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
             summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
-            summary.write(f"- Change request: {os.environ['CHANGE_LINK']}\n\n")
+            summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n\n")
             summary.write("### Commits\n")
             if commits:
               for commit in commits:
