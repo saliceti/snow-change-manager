@@ -10,9 +10,41 @@ import sys
 import argparse
 from datetime import datetime,timedelta
 
+ENV_HELP = """Required environment variables:
+    SNOW_URL       ServiceNow instance base URL (must be http(s), for example: https://example.service-now.com)
+    SNOW_USER      ServiceNow username used for API authentication
+    SNOW_PASSWORD  ServiceNow password used for API authentication
+"""
+
 def _auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
+
+def validate_environment(parser):
+    required = ("SNOW_URL", "SNOW_USER", "SNOW_PASSWORD")
+    values = {}
+    missing = []
+
+    for name in required:
+        value = os.environ.get(name)
+        if value is None or not value.strip():
+            missing.append(name)
+        else:
+            values[name] = value
+
+    if missing:
+        parser.error("Missing required environment variable(s): " + ", ".join(missing))
+
+    snow_url = values["SNOW_URL"].strip()
+    parsed = urllib.parse.urlparse(snow_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        parser.error(
+            "Invalid SNOW_URL. Expected a full http(s) URL with hostname, "
+            f"for example 'https://example.service-now.com'. Got: {snow_url!r}"
+        )
+
+    values["SNOW_URL"] = snow_url.rstrip("/")
+    return values["SNOW_URL"], values["SNOW_USER"], values["SNOW_PASSWORD"]
 
 def send_request(url, method, user, password, payload=None, extra_headers=None):
     """
@@ -187,11 +219,11 @@ def post_comment(snow_url, sys_id, user, password, comment):
     return send_request(url, "PATCH", user, password, payload=payload)
 
 def main():
-    snow_url = os.environ.get("SNOW_URL")
-    user = os.environ.get("SNOW_USER")
-    password = os.environ.get("SNOW_PASSWORD")
-
-    parser = argparse.ArgumentParser(description="Create or update ServiceNow standard changes")
+    parser = argparse.ArgumentParser(
+        description="Create or update ServiceNow standard changes",
+        epilog=ENV_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -230,6 +262,7 @@ def main():
     sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
 
     args = parser.parse_args()
+    snow_url, user, password = validate_environment(parser)
 
     try:
         match args.command:
@@ -286,23 +319,23 @@ def main():
                     print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
                     print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"]["sys_id"]["value"]}")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']['value']}")
                 case "change_list":
                     print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
                     print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
                     print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"][0]["sys_id"]["value"]}")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
                 case "template_list":
                     print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
                     print("TEMPLATE_NAME=\"" + args.name + "\"")
-                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={data["result"][0]["sys_id"]["value"]}")
+                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={data['result'][0]['sys_id']['value']}")
                 case "table_item":
                     print("CHANGE_NUMBER=" + data["result"]["number"])
                     print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
                     print("CHANGE_STATE=" + data["result"]["state"])
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"] + "\"")
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data["result"]["sys_id"]}")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']}")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
