@@ -59,20 +59,6 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing required environment variable(s): SNOW_USER", result.stderr)
 
-    def test_invalid_snow_host_is_reported(self):
-        result = self.run_cli(
-            ["get-template-id", "--name", "Any Template"],
-            env_updates={
-                "SNOW_HOST": "https://example.service-now.com",
-                "SNOW_USER": "user",
-                "SNOW_PASSWORD": "secret",
-            },
-        )
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Invalid SNOW_HOST", result.stderr)
-        self.assertIn("example.service-now.com", result.stderr)
-
     def test_closed_state_still_requires_result(self):
         result = self.run_cli(
             ["update", "--sys-id", "abc123", "--state", "Closed"],

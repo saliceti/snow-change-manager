@@ -36,20 +36,8 @@ def validate_environment(parser):
         parser.error("Missing required environment variable(s): " + ", ".join(missing))
 
     snow_host = values["SNOW_HOST"].strip()
-    if "://" in snow_host or any(ch in snow_host for ch in "/?#@") or any(ch.isspace() for ch in snow_host):
-        parser.error(
-            "Invalid SNOW_HOST. Expected host only without protocol/path, "
-            f"for example 'example.service-now.com'. Got: {snow_host!r}"
-        )
-
-    parsed = urllib.parse.urlparse("//" + snow_host)
-    if not parsed.hostname:
-        parser.error(
-            "Invalid SNOW_HOST. Expected host only without protocol/path, "
-            f"for example 'example.service-now.com'. Got: {snow_host!r}"
-        )
-
     snow_url = f"https://{snow_host}"
+
     return snow_url, values["SNOW_USER"], values["SNOW_PASSWORD"]
 
 def send_request(url, method, user, password, payload=None, extra_headers=None):
