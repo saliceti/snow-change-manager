@@ -21,6 +21,12 @@ on:
         - pass
         - fail
 
+env:
+  SNOW_HOST: ${{ secrets.SNOW_HOST }}
+  SNOW_USER: ${{ secrets.SNOW_USER }}
+  SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+  SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
+
 jobs:
 
   unit-tests:
@@ -46,13 +52,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      # - name: Run integration tests
-      #   run: python test_integration.py
-      #   env:
-      #     SNOW_HOST: dev280175.service-now.com
-      #     SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
-      #     SNOW_USER: ${{ secrets.SNOW_USER }}
-      #     SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+      - name: Run integration tests
+        run: python test_integration.py
 
   create-snow-change:
     name: Create ServiceNow change
@@ -122,16 +123,12 @@ jobs:
             ${{ steps.commit-list.outputs.COMMIT_TEXT}}"
         env:
           SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}}"
-          SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
-          SNOW_USER: ${{ secrets.SNOW_USER }}
-          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
     needs: [create-snow-change]
-    env:
-      SNOW_HOST: dev280175.service-now.com
+
     outputs:
       CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
@@ -146,8 +143,6 @@ jobs:
           echo Change started successfully. Ready for deployment.
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_USER: ${{ secrets.SNOW_USER }}
-          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
       - name: Deploy software
         id: deploy-software
@@ -192,8 +187,6 @@ jobs:
             ${{ steps.deploy-software.outputs.LOG}}"
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_USER: ${{ secrets.SNOW_USER }}
-          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
       - name: Run smoke test
         id: smoke-test
@@ -236,8 +229,6 @@ jobs:
             ${{ steps.smoke-test.outputs.LOG}}"
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_USER: ${{ secrets.SNOW_USER }}
-          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
 
   close-change:
     name: Close ServiceNow change
@@ -264,5 +255,3 @@ jobs:
           echo Change closed with result: $result
         env:
           CHANGE_SYS_ID: ${{ needs.deploy.outputs.CHANGE_SYS_ID }}
-          SNOW_USER: ${{ secrets.SNOW_USER }}
-          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
