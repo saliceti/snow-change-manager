@@ -99,6 +99,8 @@ jobs:
       - name: Create and schedule change
         id: create-change
         run: |
+          SHORT_DESCRIPTION="Release Manage breast screening version $RELEASE_VERSION"
+
           ./snow_change_manager.py create \
             --short-description "$SHORT_DESCRIPTION" \
             --standard-change $SNOW_STANDARD_CHANGE  \
@@ -109,7 +111,10 @@ jobs:
           cat snow_variables.sh
 
           source snow_variables.sh
+          echo "SHORT_DESCRIPTION=$SHORT_DESCRIPTION" >> $GITHUB_OUTPUT
           echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
+          echo "CHANGE_NUMBER=$CHANGE_NUMBER" >> $GITHUB_OUTPUT
+          echo "CHANGE_LINK=$CHANGE_LINK" >> $GITHUB_OUTPUT
 
           WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ./snow_change_manager.py post-comment \
@@ -120,7 +125,41 @@ jobs:
 
             ${{ steps.commit-list.outputs.COMMIT_TEXT}}"
         env:
-          SHORT_DESCRIPTION: "Release Manage breast screening version ${{steps.tag.outputs.tag}}"
+          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+
+      - name: Add create change summary
+        shell: python -u {0}
+        run: |
+          import json
+          import os
+
+          commits_raw = os.environ.get("COMMITS_CONTEXT", "[]")
+          try:
+            commits = json.loads(commits_raw) if commits_raw else []
+          except json.JSONDecodeError:
+            commits = []
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write("## ServiceNow Change Created\n\n")
+            summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
+            summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
+            summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
+            summary.write(f"- Change request: {os.environ['CHANGE_LINK']}\n\n")
+            summary.write("### Commits\n")
+            if commits:
+              for commit in commits:
+                commit_id = commit.get("id", "unknown")
+                message = (commit.get("message", "").strip() or "(no commit message)").replace("\n", " ")
+                author = commit.get("author", {}).get("username", "unknown")
+                summary.write(f"- `{commit_id}` by `{author}`: {message}\n")
+            else:
+              summary.write("- No commits found in `COMMITS_CONTEXT`.\n")
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+          SHORT_DESCRIPTION: ${{ steps.create-change.outputs.SHORT_DESCRIPTION }}
+          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
+          CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
+          COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
   deploy:
     name: Deploy to production
