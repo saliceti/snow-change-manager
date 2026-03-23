@@ -11,7 +11,7 @@ import argparse
 from datetime import datetime,timedelta
 
 ENV_HELP = """Required environment variables:
-    SNOW_URL       ServiceNow instance base URL (must be http(s), for example: https://example.service-now.com)
+    SNOW_HOST      ServiceNow instance host only (for example: example.service-now.com)
     SNOW_USER      ServiceNow username used for API authentication
     SNOW_PASSWORD  ServiceNow password used for API authentication
 """
@@ -21,7 +21,7 @@ def _auth_header(user, password):
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
 def validate_environment(parser):
-    required = ("SNOW_URL", "SNOW_USER", "SNOW_PASSWORD")
+    required = ("SNOW_HOST", "SNOW_USER", "SNOW_PASSWORD")
     values = {}
     missing = []
 
@@ -35,16 +35,22 @@ def validate_environment(parser):
     if missing:
         parser.error("Missing required environment variable(s): " + ", ".join(missing))
 
-    snow_url = values["SNOW_URL"].strip()
-    parsed = urllib.parse.urlparse(snow_url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    snow_host = values["SNOW_HOST"].strip()
+    if "://" in snow_host or any(ch in snow_host for ch in "/?#@") or any(ch.isspace() for ch in snow_host):
         parser.error(
-            "Invalid SNOW_URL. Expected a full http(s) URL with hostname, "
-            f"for example 'https://example.service-now.com'. Got: {snow_url!r}"
+            "Invalid SNOW_HOST. Expected host only without protocol/path, "
+            f"for example 'example.service-now.com'. Got: {snow_host!r}"
         )
 
-    values["SNOW_URL"] = snow_url.rstrip("/")
-    return values["SNOW_URL"], values["SNOW_USER"], values["SNOW_PASSWORD"]
+    parsed = urllib.parse.urlparse("//" + snow_host)
+    if not parsed.hostname:
+        parser.error(
+            "Invalid SNOW_HOST. Expected host only without protocol/path, "
+            f"for example 'example.service-now.com'. Got: {snow_host!r}"
+        )
+
+    snow_url = f"https://{snow_host}"
+    return snow_url, values["SNOW_USER"], values["SNOW_PASSWORD"]
 
 def send_request(url, method, user, password, payload=None, extra_headers=None):
     """

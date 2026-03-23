@@ -12,7 +12,7 @@ The integration tests require:
 Set the following environment variables before running tests:
 
 ```bash
-export SNOW_URL="https://your-instance.service-now.com"
+export SNOW_HOST="your-instance.service-now.com"
 export SNOW_USER="your-username"
 export SNOW_PASSWORD="your-password"
 export SNOW_STANDARD_CHANGE="standard-change-sys-id"
@@ -88,7 +88,7 @@ If you see: `RuntimeError: Missing required environment variables: ...`
 
 **Solution**: Ensure all 5 required env vars are set:
 ```bash
-echo $SNOW_URL $SNOW_USER $SNOW_PASSWORD $SNOW_STANDARD_CHANGE
+echo $SNOW_HOST $SNOW_USER $SNOW_PASSWORD $SNOW_STANDARD_CHANGE
 ```
 
 ### Authentication Failed (401/403)

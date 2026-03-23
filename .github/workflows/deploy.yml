@@ -49,7 +49,7 @@ jobs:
       # - name: Run integration tests
       #   run: python test_integration.py
       #   env:
-      #     SNOW_URL: https://dev280175.service-now.com
+      #     SNOW_HOST: dev280175.service-now.com
       #     SNOW_STANDARD_CHANGE: 92b653b2537a7610065e78e0a0490e5e
       #     SNOW_USER: ${{ secrets.SNOW_USER }}
       #     SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
@@ -61,7 +61,7 @@ jobs:
     permissions:
       contents: write
     env:
-      SNOW_URL: https://dev280175.service-now.com
+      SNOW_HOST: dev280175.service-now.com
     outputs:
       CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
 
@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-snow-change]
     env:
-      SNOW_URL: https://dev280175.service-now.com
+      SNOW_HOST: dev280175.service-now.com
     outputs:
       CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
@@ -245,7 +245,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy]
     env:
-      SNOW_URL: https://dev280175.service-now.com
+      SNOW_HOST: dev280175.service-now.com
 
     steps:
       - name: Checkout code

@@ -16,14 +16,14 @@ class TestSnowChangeLifecycle(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Verify required environment variables are set."""
-        cls.snow_url = os.environ.get("SNOW_URL")
+        cls.snow_host = os.environ.get("SNOW_HOST")
         cls.snow_user = os.environ.get("SNOW_USER")
         cls.snow_password = os.environ.get("SNOW_PASSWORD")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
         cls.change_sys_id = None
 
         missing_vars = []
-        for var in ["SNOW_URL", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE"]:
+        for var in ["SNOW_HOST", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE"]:
             if not os.environ.get(var):
                 missing_vars.append(var)
 
