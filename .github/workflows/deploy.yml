@@ -166,12 +166,11 @@ jobs:
           actor        = "${{ github.actor }}"
           commits_html = os.environ['COMMITS_HTML']
 
-          html = f"""<h2>ServiceNow Change Created</h2>
+          html = f"""<h2>Properties</h2>
           <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
-            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <thead><tr><th>Property</th><th>Value</th></tr></thead>
             <tbody>
               <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
-              <tr><td>Short description</td><td>{short_description}</td></tr>
               <tr><td>Commit SHA</td><td><code>{sha}</code></td></tr>
               <tr><td>Workflow run</td><td><a href="{workflow_run_link}">Open workflow run</a></td></tr>
               <tr><td>Triggered by</td><td>{actor}</td></tr>
@@ -247,16 +246,18 @@ jobs:
         run: |
           import os
 
-          change_number  = os.environ['CHANGE_NUMBER']
-          change_link    = os.environ['CHANGE_LINK']
-          change_sys_id  = os.environ['CHANGE_SYS_ID']
-          change_html    = os.environ['CHANGE_HTML']
+          change_number     = os.environ['CHANGE_NUMBER']
+          change_link       = os.environ['CHANGE_LINK']
+          change_sys_id     = os.environ['CHANGE_SYS_ID']
+          change_html       = os.environ['CHANGE_HTML']
+          short_description = os.environ['SHORT_DESCRIPTION']
 
           header = f"""<h2>ServiceNow Change</h2>
           <table>
             <thead><tr><th>Field</th><th>Value</th></tr></thead>
             <tbody>
               <tr><td>Change number</td><td><a href="{change_link}">{change_number}</a></td></tr>
+              <tr><td>Short description</td><td>{short_description}</td></tr>
               <tr><td>Sys ID</td><td><code>{change_sys_id}</code></td></tr>
             </tbody>
           </table>"""
@@ -269,6 +270,7 @@ jobs:
           CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
           CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
           CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+          SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
 
   deploy:
     name: Deploy to production
