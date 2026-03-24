@@ -254,7 +254,7 @@ jobs:
 
           header = f"""<h2>ServiceNow Change</h2>
           <table>
-            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <thead><tr><th>Property</th><th>Value</th></tr></thead>
             <tbody>
               <tr><td>Change number</td><td><a href="{change_link}">{change_number}</a></td></tr>
               <tr><td>Short description</td><td>{short_description}</td></tr>
