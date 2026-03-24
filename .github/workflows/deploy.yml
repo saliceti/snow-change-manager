@@ -29,22 +29,75 @@ env:
 
 jobs:
 
-  unit-tests:
-    name: Run unit tests
+  # unit-tests:
+  #   name: Run unit tests
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     pull-requests: read
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v5
+
+  #     - name: Run unit tests 1
+  #       run: |
+  #         echo Running unit tests 1...
+  #         # sleep 5
+  #         echo '${{ toJSON(github.event) }}'
+
+  # integration-tests:
+  #   name: Run integration tests
+  #   runs-on: ubuntu-latest
+  #   needs: [unit-tests]
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v5
+
+  #     - name: Run integration tests
+  #       run: python test_integration.py
+
+  create-snow-change:
+    name: Create ServiceNow change
     runs-on: ubuntu-latest
+    # needs: [integration-tests]
     permissions:
-      contents: read
-      pull-requests: read
+      contents: write
+    outputs:
+      CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Run unit tests 1
+      - name: Bump version and push tag
+        uses: anothrNick/github-tag-action@v1
+        id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_PREFIX: v
+
+      - name: List commits
+        id: commit-list
+        shell: python -u {0}
         run: |
-          echo Running unit tests 1...
-          # sleep 5
-          echo '${{ toJSON(github.event) }}'
+          import json,os,sys
+          commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
+          if commit_list is None:
+            sys.exit(0)
+          commit_text = "List of pushed commits:\n"
+          for c in commit_list:
+            commit_text += f"- {c['id']} by {c['author']['username']}:\n"
+            commit_text += f"{c['message']}\n"
+
+          print(commit_text)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
+            print(f'COMMIT_TEXT<<EOF', file=output_file)
+            print(commit_text, file=output_file)
+            print('EOF', file=output_file)
+        env:
+          COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
       - name: Extract PR and Jira info
         if: github.event_name == 'push'
@@ -71,66 +124,20 @@ jobs:
                 body.match(/https:\/\/nhsd-jira\.digital\.nhs\.uk\/browse\/[A-Z][A-Z0-9]+-\d+/)?.[0] ?? '';
             }
 
+            if (jiraLink == '' && jiraReference != '') {
+              core.info(`Jira link not found. Using Jira reference ${jiraReference} from PR title.`)
+              jiraLink = `https://nhsd-jira.digital.nhs.uk/browse/${jiraReference}`
+            }
+
             core.setOutput('pull_request_number', prNumber);
+            core.setOutput('pull_request_link', `${context.payload.repository.html_url}/pull/${prNumber}`);
             core.setOutput('jira_reference', jiraReference);
             core.setOutput('jira_link', jiraLink);
 
             core.info(`pull_request_number=${prNumber}`);
+            core.info(`pull_request_link=${context.payload.repository.html_url}/pull/{prNumber}`);
             core.info(`jira_reference=${jiraReference}`);
             core.info(`jira_link=${jiraLink}`);
-
-  # integration-tests:
-  #   name: Run integration tests
-  #   runs-on: ubuntu-latest
-  #   needs: [unit-tests]
-
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v5
-
-  #     - name: Run integration tests
-  #       run: python test_integration.py
-
-  # create-snow-change:
-  #   name: Create ServiceNow change
-  #   runs-on: ubuntu-latest
-  #   needs: [integration-tests]
-  #   permissions:
-  #     contents: write
-  #   outputs:
-  #     CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
-
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v5
-
-  #     - name: Bump version and push tag
-  #       uses: anothrNick/github-tag-action@v1
-  #       id: tag
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         TAG_PREFIX: v
-
-  #     - name: List commits
-  #       id: commit-list
-  #       shell: python -u {0}
-  #       run: |
-  #         import json,os,sys
-  #         commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
-  #         if commit_list is None:
-  #           sys.exit(0)
-  #         commit_text = "List of pushed commits:\n"
-  #         for c in commit_list:
-  #           commit_text += f"- {c['id']} by {c['author']['username']}:\n"
-  #           commit_text += f"{c['message']}\n"
-
-  #         print(commit_text)
-  #         with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
-  #           print(f'COMMIT_TEXT<<EOF', file=output_file)
-  #           print(commit_text, file=output_file)
-  #           print('EOF', file=output_file)
-  #       env:
-  #         COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
   #     - name: Create and schedule change
   #       id: create-change
@@ -180,7 +187,11 @@ jobs:
   #           summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
   #           summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
   #           summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
-  #           summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n\n")
+  #           summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n")
+  #           summary.write(f"- Pull request number: {os.environ['PR_NUMBER']}\n")
+  #           summary.write(f"- Pull request link: {os.environ['PR_NUMBER']}\n")
+  #           summary.write(f"- Jira ticket reference: {os.environ['JIRA_REFERENCE']}\n")
+  #           summary.write(f"- Jira ticket link: [Open Jira ticket {os.environ['JIRA_REFERENCE']}]({os.environ['JIRA_LINK']})\n\n")
   #           summary.write("### Commits\n")
   #           if commits:
   #             for commit in commits:
@@ -196,6 +207,10 @@ jobs:
   #         CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
   #         CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
   #         COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
+  #         PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+  #         PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+  #         JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+  #         JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
 
   # deploy:
   #   name: Deploy to production
