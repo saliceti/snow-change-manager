@@ -82,20 +82,30 @@ jobs:
         id: commit-list
         shell: python -u {0}
         run: |
-          import json,os,sys
-          commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
-          if commit_list is None:
-            sys.exit(0)
-          commit_text = "List of pushed commits:\n"
-          for c in commit_list:
-            commit_text += f"- {c['id']} by {c['author']['username']}:\n"
-            commit_text += f"{c['message']}\n"
+          import json, os, sys
 
-          print(commit_text)
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
-            print(f'COMMIT_TEXT<<EOF', file=output_file)
-            print(commit_text, file=output_file)
-            print('EOF', file=output_file)
+          commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
+          if not commit_list:
+            sys.exit(0)
+
+          rows = ""
+          for c in commit_list:
+            cid = c['id']
+            author = c['author']['username']
+            message = c['message'].strip().replace('\n', ' ')
+            rows += f"<tr><td><code>{cid}</code></td><td>{author}</td><td>{message}</td></tr>\n"
+
+          html = (
+            "<table>"
+            "<thead><tr><th>Commit</th><th>Author</th><th>Message</th></tr></thead>"
+            f"<tbody>{rows}</tbody>"
+            "</table>"
+          )
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            print('COMMITS_HTML<<EOF', file=f)
+            print(html, file=f)
+            print('EOF', file=f)
         env:
           COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
@@ -139,86 +149,126 @@ jobs:
             core.info(`jira_reference=${jiraReference}`)
             core.info(`jira_link=${jiraLink}`)
 
-      - name: Create and schedule change
-        id: create-change
+      - name: Build change HTML
+        id: build-change-html
+        shell: python -u {0}
         run: |
-          SHORT_DESCRIPTION="Release Manage breast screening version $RELEASE_VERSION"
+          import os
 
-          ./snow_change_manager.py create \
-            --short-description "$SHORT_DESCRIPTION" \
-            --standard-change $SNOW_STANDARD_CHANGE  \
-            | grep '=' \
-            > snow_variables.sh
+          release_version = os.environ['RELEASE_VERSION']
+          short_description = f"Release Manage breast screening version {release_version}"
+          workflow_run_link = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          pr_number    = os.environ['PR_NUMBER']
+          pr_link      = os.environ['PR_LINK']
+          jira_ref     = os.environ['JIRA_REFERENCE']
+          jira_link    = os.environ['JIRA_LINK']
+          sha          = "${{ github.sha }}"
+          actor        = "${{ github.actor }}"
+          commits_html = os.environ['COMMITS_HTML']
 
-          echo Change created successfully and scheduled immediately
-          cat snow_variables.sh
+          html = f"""<h2>ServiceNow Change Created</h2>
+          <table>
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
+              <tr><td>Short description</td><td>{short_description}</td></tr>
+              <tr><td>Commit SHA</td><td><code>{sha}</code></td></tr>
+              <tr><td>Workflow run</td><td><a href="{workflow_run_link}">Open workflow run</a></td></tr>
+              <tr><td>Triggered by</td><td>{actor}</td></tr>
+              <tr><td>Pull request</td><td><a href="{pr_link}">#{pr_number}</a></td></tr>
+              <tr><td>Jira ticket</td><td><a href="{jira_link}">{jira_ref}</a></td></tr>
+            </tbody>
+          </table>
+          <h3>Commits</h3>
+          {commits_html}"""
 
-          source snow_variables.sh
-          echo "SHORT_DESCRIPTION=$SHORT_DESCRIPTION" >> $GITHUB_OUTPUT
-          echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
-          echo "CHANGE_NUMBER=$CHANGE_NUMBER" >> $GITHUB_OUTPUT
-          echo "CHANGE_LINK=$CHANGE_LINK" >> $GITHUB_OUTPUT
-
-          WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ./snow_change_manager.py post-comment \
-            --sys-id $CHANGE_SYS_ID \
-            --comment "Commit SHA: ${{github.sha}}
-            Link to [code]<a href=\"$WORKFLOW_RUN_LINK\" target=\"_blank\">Github action workflow</a>[/code]
-            Triggered by ${{github.actor}}
-            Pull request number: $PR_NUMBER
-            Link to: [code]<a href=\"$PR_LINK\" target=\"_blank\">Pull request</a>[/code]
-            Jira ticket: $JIRA_REFERENCE
-            Link to: [code]<a href=\"$JIRA_LINK\" target=\"_blank\">Jira ticket</a>[/code]
-
-            ${{ steps.commit-list.outputs.COMMIT_TEXT}}"
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            print('CHANGE_HTML<<EOF', file=f)
+            print(html, file=f)
+            print('EOF', file=f)
+            print(f'SHORT_DESCRIPTION={short_description}', file=f)
         env:
           RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
           PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
           PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
           JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
           JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+          COMMITS_HTML: ${{ steps.commit-list.outputs.COMMITS_HTML }}
+
+      - name: Create and schedule change
+        id: create-change
+        shell: python -u {0}
+        run: |
+          import os, subprocess
+
+          short_description = os.environ['SHORT_DESCRIPTION']
+          change_html       = os.environ['CHANGE_HTML']
+
+          result = subprocess.run(
+            [
+              "./snow_change_manager.py", "create",
+              "--short-description", short_description,
+              "--standard-change", os.environ['SNOW_STANDARD_CHANGE'],
+            ],
+            capture_output=True, text=True, check=True
+          )
+
+          snow_vars = {}
+          for line in result.stdout.splitlines():
+            if '=' in line:
+              k, v = line.split('=', 1)
+              snow_vars[k.strip()] = v.strip()
+
+          change_sys_id = snow_vars.get('CHANGE_SYS_ID', '')
+          change_number = snow_vars.get('CHANGE_NUMBER', '')
+          change_link   = snow_vars.get('CHANGE_LINK', '')
+
+          print("Change created successfully and scheduled immediately")
+
+          subprocess.run(
+            [
+              "./snow_change_manager.py", "post-comment",
+              "--sys-id", change_sys_id,
+              "--comment", f"[code]{change_html}[/code]",
+            ],
+            check=True
+          )
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"CHANGE_SYS_ID={change_sys_id}\n")
+            f.write(f"CHANGE_NUMBER={change_number}\n")
+            f.write(f"CHANGE_LINK={change_link}\n")
+        env:
+          SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
+          CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
 
       - name: Add create change summary
         shell: python -u {0}
         run: |
-          import json
           import os
 
-          commits_raw = os.environ.get("COMMITS_CONTEXT", "[]")
-          try:
-            commits = json.loads(commits_raw) if commits_raw else []
-          except json.JSONDecodeError:
-            commits = []
+          change_number  = os.environ['CHANGE_NUMBER']
+          change_link    = os.environ['CHANGE_LINK']
+          change_sys_id  = os.environ['CHANGE_SYS_ID']
+          change_html    = os.environ['CHANGE_HTML']
 
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-            summary.write("## ServiceNow Change Created\n\n")
-            summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
-            summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
-            summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
-            summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n")
-            summary.write(f"- Pull request number: {os.environ['PR_NUMBER']}\n")
-            summary.write(f"- Pull request link: {os.environ['PR_LINK']}\n")
-            summary.write(f"- Jira ticket reference: {os.environ['JIRA_REFERENCE']}\n")
-            summary.write(f"- Jira ticket link: [Open Jira ticket {os.environ['JIRA_REFERENCE']}]({os.environ['JIRA_LINK']})\n\n")
-            summary.write("### Commits\n")
-            if commits:
-              for commit in commits:
-                commit_id = commit.get("id", "unknown")
-                message = (commit.get("message", "").strip() or "(no commit message)").replace("\n", " ")
-                author = commit.get("author", {}).get("username", "unknown")
-                summary.write(f"- `{commit_id}` by `{author}`: {message}\n")
-            else:
-              summary.write("- No commits found in `COMMITS_CONTEXT`.\n")
+          header = f"""<h2>ServiceNow Change</h2>
+          <table>
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Change number</td><td><a href="{change_link}">{change_number}</a></td></tr>
+              <tr><td>Sys ID</td><td><code>{change_sys_id}</code></td></tr>
+            </tbody>
+          </table>"""
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+            f.write(header + "\n")
+            f.write(change_html + "\n")
         env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
-          SHORT_DESCRIPTION: ${{ steps.create-change.outputs.SHORT_DESCRIPTION }}
           CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
           CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
-          COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
-          PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
-          PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
-          JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
-          JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+          CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
+          CHANGE_HTML: ${{ steps.create-change.outputs.CHANGE_HTML }}
 
   deploy:
     name: Deploy to production
