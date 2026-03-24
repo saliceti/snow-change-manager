@@ -129,215 +129,223 @@ jobs:
               jiraLink = `https://nhsd-jira.digital.nhs.uk/browse/${jiraReference}`
             }
 
-            core.setOutput('pull_request_number', prNumber);
-            core.setOutput('pull_request_link', `${context.payload.repository.html_url}/pull/${prNumber}`);
-            core.setOutput('jira_reference', jiraReference);
-            core.setOutput('jira_link', jiraLink);
+            core.setOutput('pull_request_number', prNumber)
+            core.setOutput('pull_request_link', `${context.payload.repository.html_url}/pull/${prNumber}`)
+            core.setOutput('jira_reference', jiraReference)
+            core.setOutput('jira_link', jiraLink)
 
-            core.info(`pull_request_number=${prNumber}`);
-            core.info(`pull_request_link=${context.payload.repository.html_url}/pull/{prNumber}`);
-            core.info(`jira_reference=${jiraReference}`);
-            core.info(`jira_link=${jiraLink}`);
+            core.info(`pull_request_number=${prNumber}`)
+            core.info(`pull_request_link=${context.payload.repository.html_url}/pull/${prNumber}`)
+            core.info(`jira_reference=${jiraReference}`)
+            core.info(`jira_link=${jiraLink}`)
 
-  #     - name: Create and schedule change
-  #       id: create-change
-  #       run: |
-  #         SHORT_DESCRIPTION="Release Manage breast screening version $RELEASE_VERSION"
+      - name: Create and schedule change
+        id: create-change
+        run: |
+          SHORT_DESCRIPTION="Release Manage breast screening version $RELEASE_VERSION"
 
-  #         ./snow_change_manager.py create \
-  #           --short-description "$SHORT_DESCRIPTION" \
-  #           --standard-change $SNOW_STANDARD_CHANGE  \
-  #           | grep '=' \
-  #           > snow_variables.sh
+          ./snow_change_manager.py create \
+            --short-description "$SHORT_DESCRIPTION" \
+            --standard-change $SNOW_STANDARD_CHANGE  \
+            | grep '=' \
+            > snow_variables.sh
 
-  #         echo Change created successfully and scheduled immediately
-  #         cat snow_variables.sh
+          echo Change created successfully and scheduled immediately
+          cat snow_variables.sh
 
-  #         source snow_variables.sh
-  #         echo "SHORT_DESCRIPTION=$SHORT_DESCRIPTION" >> $GITHUB_OUTPUT
-  #         echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
-  #         echo "CHANGE_NUMBER=$CHANGE_NUMBER" >> $GITHUB_OUTPUT
-  #         echo "CHANGE_LINK=$CHANGE_LINK" >> $GITHUB_OUTPUT
+          source snow_variables.sh
+          echo "SHORT_DESCRIPTION=$SHORT_DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "CHANGE_SYS_ID=$CHANGE_SYS_ID" >> $GITHUB_OUTPUT
+          echo "CHANGE_NUMBER=$CHANGE_NUMBER" >> $GITHUB_OUTPUT
+          echo "CHANGE_LINK=$CHANGE_LINK" >> $GITHUB_OUTPUT
 
-  #         WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  #         ./snow_change_manager.py post-comment \
-  #           --sys-id $CHANGE_SYS_ID \
-  #           --comment "Commit SHA: ${{github.sha}}
-  #           Link to [code]<a href=\"$WORKFLOW_RUN_LINK\" target=\"_blank\">Github action workflow</a>[/code]
-  #           Triggered by ${{github.actor}}
+          WORKFLOW_RUN_LINK=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "Commit SHA: ${{github.sha}}
+            Link to [code]<a href=\"$WORKFLOW_RUN_LINK\" target=\"_blank\">Github action workflow</a>[/code]
+            Triggered by ${{github.actor}}
+            Pull request number: $PR_NUMBER
+            Link to: [code]<a href=\"$PR_LINK\" target=\"_blank\">Pull request</a>[/code]
+            Jira ticket: $JIRA_REFERENCE
+            Link to: [code]<a href=\"$JIRA_LINK\" target=\"_blank\">Jira ticket</a>[/code]
 
-  #           ${{ steps.commit-list.outputs.COMMIT_TEXT}}"
-  #       env:
-  #         RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+            ${{ steps.commit-list.outputs.COMMIT_TEXT}}"
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+          PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+          PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+          JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+          JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
 
-  #     - name: Add create change summary
-  #       shell: python -u {0}
-  #       run: |
-  #         import json
-  #         import os
+      - name: Add create change summary
+        shell: python -u {0}
+        run: |
+          import json
+          import os
 
-  #         commits_raw = os.environ.get("COMMITS_CONTEXT", "[]")
-  #         try:
-  #           commits = json.loads(commits_raw) if commits_raw else []
-  #         except json.JSONDecodeError:
-  #           commits = []
+          commits_raw = os.environ.get("COMMITS_CONTEXT", "[]")
+          try:
+            commits = json.loads(commits_raw) if commits_raw else []
+          except json.JSONDecodeError:
+            commits = []
 
-  #         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-  #           summary.write("## ServiceNow Change Created\n\n")
-  #           summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
-  #           summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
-  #           summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
-  #           summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n")
-  #           summary.write(f"- Pull request number: {os.environ['PR_NUMBER']}\n")
-  #           summary.write(f"- Pull request link: {os.environ['PR_NUMBER']}\n")
-  #           summary.write(f"- Jira ticket reference: {os.environ['JIRA_REFERENCE']}\n")
-  #           summary.write(f"- Jira ticket link: [Open Jira ticket {os.environ['JIRA_REFERENCE']}]({os.environ['JIRA_LINK']})\n\n")
-  #           summary.write("### Commits\n")
-  #           if commits:
-  #             for commit in commits:
-  #               commit_id = commit.get("id", "unknown")
-  #               message = (commit.get("message", "").strip() or "(no commit message)").replace("\n", " ")
-  #               author = commit.get("author", {}).get("username", "unknown")
-  #               summary.write(f"- `{commit_id}` by `{author}`: {message}\n")
-  #           else:
-  #             summary.write("- No commits found in `COMMITS_CONTEXT`.\n")
-  #       env:
-  #         RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
-  #         SHORT_DESCRIPTION: ${{ steps.create-change.outputs.SHORT_DESCRIPTION }}
-  #         CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
-  #         CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
-  #         COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
-  #         PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
-  #         PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
-  #         JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
-  #         JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write("## ServiceNow Change Created\n\n")
+            summary.write(f"- Release version: `{os.environ['RELEASE_VERSION']}`\n")
+            summary.write(f"- Short description: {os.environ['SHORT_DESCRIPTION']}\n")
+            summary.write(f"- Change number: {os.environ['CHANGE_NUMBER']}\n")
+            summary.write(f"- Change request: [Open change {os.environ['CHANGE_NUMBER']}]({os.environ['CHANGE_LINK']})\n")
+            summary.write(f"- Pull request number: {os.environ['PR_NUMBER']}\n")
+            summary.write(f"- Pull request link: {os.environ['PR_LINK']}\n")
+            summary.write(f"- Jira ticket reference: {os.environ['JIRA_REFERENCE']}\n")
+            summary.write(f"- Jira ticket link: [Open Jira ticket {os.environ['JIRA_REFERENCE']}]({os.environ['JIRA_LINK']})\n\n")
+            summary.write("### Commits\n")
+            if commits:
+              for commit in commits:
+                commit_id = commit.get("id", "unknown")
+                message = (commit.get("message", "").strip() or "(no commit message)").replace("\n", " ")
+                author = commit.get("author", {}).get("username", "unknown")
+                summary.write(f"- `{commit_id}` by `{author}`: {message}\n")
+            else:
+              summary.write("- No commits found in `COMMITS_CONTEXT`.\n")
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+          SHORT_DESCRIPTION: ${{ steps.create-change.outputs.SHORT_DESCRIPTION }}
+          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
+          CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
+          COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
+          PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+          PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+          JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+          JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
 
-  # deploy:
-  #   name: Deploy to production
-  #   runs-on: ubuntu-latest
-  #   needs: [create-snow-change]
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: [create-snow-change]
 
-  #   outputs:
-  #     CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+    outputs:
+      CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
 
-  #     - name: Start change
-  #       run: |
-  #         ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Implement
+      - name: Start change
+        run: |
+          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Implement
 
-  #         echo Change started successfully. Ready for deployment.
-  #       env:
-  #         CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+          echo Change started successfully. Ready for deployment.
+        env:
+          CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
-  #     - name: Deploy software
-  #       id: deploy-software
-  #       run: |
-  #         echo Deploying software... | tee -a deployment.log
-  #         sleep 5
+      - name: Deploy software
+        id: deploy-software
+        run: |
+          echo Deploying software... | tee -a deployment.log
+          sleep 5
 
-  #         if [[ "${{ inputs.deployment_result }}" = "fail" ]]; then
-  #           echo Error: Deployment has failed. | tee -a deployment.log
-  #           {
-  #             echo 'LOG<<EOF'
-  #             cat deployment.log
-  #             echo EOF
-  #           } >> "$GITHUB_OUTPUT"
-  #           exit 1
-  #         fi
+          if [[ "${{ inputs.deployment_result }}" = "fail" ]]; then
+            echo Error: Deployment has failed. | tee -a deployment.log
+            {
+              echo 'LOG<<EOF'
+              cat deployment.log
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
 
-  #         echo Deployed software successfully | tee -a deployment.log
-  #         {
-  #           echo 'LOG<<EOF'
-  #           cat deployment.log
-  #           echo EOF
-  #         } >> "$GITHUB_OUTPUT"
+          echo Deployed software successfully | tee -a deployment.log
+          {
+            echo 'LOG<<EOF'
+            cat deployment.log
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
-  #     - name: Review change
-  #       if: always()
-  #       run: |
-  #         ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
+      - name: Review change
+        if: always()
+        run: |
+          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Review
 
-  #         if [[ "${{ job.status }}" != "success" ]]; then
-  #           message="The deployment was unsuccessul"
-  #         else
-  #           message="The deployment was successul"
-  #         fi
+          if [[ "${{ job.status }}" != "success" ]]; then
+            message="The deployment was unsuccessul"
+          else
+            message="The deployment was successul"
+          fi
 
-  #         echo "$message"
+          echo "$message"
 
-  #         ./snow_change_manager.py post-comment \
-  #           --sys-id $CHANGE_SYS_ID \
-  #           --comment "$message
-  #           Deployment log:
-  #           ${{ steps.deploy-software.outputs.LOG}}"
-  #       env:
-  #         CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "$message
+            Deployment log:
+            ${{ steps.deploy-software.outputs.LOG}}"
+        env:
+          CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
-  #     - name: Run smoke test
-  #       id: smoke-test
-  #       run: |
-  #         echo Testing the deployment... | tee -a test.log
-  #         sleep 5
+      - name: Run smoke test
+        id: smoke-test
+        run: |
+          echo Testing the deployment... | tee -a test.log
+          sleep 5
 
-  #         if [[ "${{ inputs.test_result }}" = "fail" ]]; then
-  #           echo Error: The smoke tests 1,2,3 have failed. | tee -a test.log
-  #           {
-  #             echo 'LOG<<EOF'
-  #             cat test.log
-  #             echo EOF
-  #           } >> "$GITHUB_OUTPUT"
-  #           exit 1
-  #         fi
+          if [[ "${{ inputs.test_result }}" = "fail" ]]; then
+            echo Error: The smoke tests 1,2,3 have failed. | tee -a test.log
+            {
+              echo 'LOG<<EOF'
+              cat test.log
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
 
-  #         echo The smoke tests 1,2,3 were successful | tee -a test.log
-  #         {
-  #           echo 'LOG<<EOF'
-  #           cat test.log
-  #           echo EOF
-  #         } >> "$GITHUB_OUTPUT"
+          echo The smoke tests 1,2,3 were successful | tee -a test.log
+          {
+            echo 'LOG<<EOF'
+            cat test.log
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
-  #     - name: Update change
-  #       if: always() && steps.deploy-software.outcome == 'success'
-  #       run: |
-  #         if [[ "${{ job.status }}" != "success" ]]; then
-  #           message="The test was unsuccessul"
-  #         else
-  #           message="The test was successul"
-  #         fi
+      - name: Update change
+        if: always() && steps.deploy-software.outcome == 'success'
+        run: |
+          if [[ "${{ job.status }}" != "success" ]]; then
+            message="The test was unsuccessul"
+          else
+            message="The test was successul"
+          fi
 
-  #         echo "$message"
+          echo "$message"
 
-  #         ./snow_change_manager.py post-comment \
-  #           --sys-id $CHANGE_SYS_ID \
-  #           --comment "$message
-  #           Smoke test log:
-  #           ${{ steps.smoke-test.outputs.LOG}}"
-  #       env:
-  #         CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
+          ./snow_change_manager.py post-comment \
+            --sys-id $CHANGE_SYS_ID \
+            --comment "$message
+            Smoke test log:
+            ${{ steps.smoke-test.outputs.LOG}}"
+        env:
+          CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
-  # close-change:
-  #   name: Close ServiceNow change
-  #   if: always()
-  #   runs-on: ubuntu-latest
-  #   needs: [deploy]
+  close-change:
+    name: Close ServiceNow change
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [deploy]
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v5
-  #     - name: Close change
-  #       if: needs.deploy.outputs.CHANGE_SYS_ID
-  #       run: |
-  #         if [[ "${{ needs.deploy.result }}" = "success" ]]; then
-  #           result=successful
-  #         else
-  #           result=unsuccessful
-  #         fi
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Close change
+        if: needs.deploy.outputs.CHANGE_SYS_ID
+        run: |
+          if [[ "${{ needs.deploy.result }}" = "success" ]]; then
+            result=successful
+          else
+            result=unsuccessful
+          fi
 
-  #         ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Closed --result $result
+          ./snow_change_manager.py update --sys-id $CHANGE_SYS_ID --state Closed --result $result
 
-  #         echo Change closed with result: $result
-  #       env:
-  #         CHANGE_SYS_ID: ${{ needs.deploy.outputs.CHANGE_SYS_ID }}
+          echo Change closed with result: $result
+        env:
+          CHANGE_SYS_ID: ${{ needs.deploy.outputs.CHANGE_SYS_ID }}
