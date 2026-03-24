@@ -96,7 +96,7 @@ jobs:
             rows += f"<tr><td><code>{cid}</code></td><td>{author}</td><td>{message}</td></tr>\n"
 
           html = (
-            "<table>"
+            "<table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse;'>"
             "<thead><tr><th>Commit</th><th>Author</th><th>Message</th></tr></thead>"
             f"<tbody>{rows}</tbody>"
             "</table>"
@@ -167,7 +167,7 @@ jobs:
           commits_html = os.environ['COMMITS_HTML']
 
           html = f"""<h2>ServiceNow Change Created</h2>
-          <table>
+          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
             <thead><tr><th>Field</th><th>Value</th></tr></thead>
             <tbody>
               <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
@@ -268,7 +268,7 @@ jobs:
           CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
           CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
           CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
-          CHANGE_HTML: ${{ steps.create-change.outputs.CHANGE_HTML }}
+          CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
 
   deploy:
     name: Deploy to production
