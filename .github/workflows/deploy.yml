@@ -32,6 +32,9 @@ jobs:
   unit-tests:
     name: Run unit tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout code
@@ -42,6 +45,39 @@ jobs:
           echo Running unit tests 1...
           # sleep 5
           echo '${{ toJSON(github.event) }}'
+
+      - name: Extract PR and Jira info
+        if: github.event_name == 'push'
+        id: extract-pr-jira
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const message = context.payload.head_commit?.message ?? '';
+
+            const prNumber = message.match(/#(\d+)/)?.[1] ?? '';
+            const jiraReference = message.match(/\[([A-Z][A-Z0-9]+-\d+)\]/)?.[1] ?? '';
+
+            let jiraLink = '';
+
+            if (prNumber) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: Number(prNumber),
+              });
+
+              const body = pr.body ?? '';
+              jiraLink =
+                body.match(/https:\/\/nhsd-jira\.digital\.nhs\.uk\/browse\/[A-Z][A-Z0-9]+-\d+/)?.[0] ?? '';
+            }
+
+            core.setOutput('pull_request_number', prNumber);
+            core.setOutput('jira_reference', jiraReference);
+            core.setOutput('jira_link', jiraLink);
+
+            core.info(`pull_request_number=${prNumber}`);
+            core.info(`jira_reference=${jiraReference}`);
+            core.info(`jira_link=${jiraLink}`);
 
   # integration-tests:
   #   name: Run integration tests
