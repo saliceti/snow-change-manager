@@ -29,6 +29,7 @@ Optional endpoint mode:
 DEFAULT_ENDPOINTS = {
     "create": "/api/sn_chg_rest/change/standard/{standard_change_sys_id}",
     "change": "/api/sn_chg_rest/change/{sys_id}",
+    "change_get": "/api/sn_chg_rest/change/{sys_id}",
     "change_list": "/api/sn_chg_rest/change",
     "template": "/api/sn_chg_rest/v1/change/standard/template",
     "table_change_request": "/api/now/table/change_request/{sys_id}",
@@ -38,6 +39,7 @@ DEFAULT_ENDPOINTS = {
 CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
 CUSTOM_ENDPOINTS["create"] = "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"
 CUSTOM_ENDPOINTS["template"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"
+CUSTOM_ENDPOINTS["change_get"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{sys_id}"
 
 
 def resolve_endpoint(custom, key, **params):
@@ -223,7 +225,7 @@ def close(snow_url, sys_id, auth_header, result, custom):
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     return send_request(url, "PATCH", auth_header, payload=fields)
 
-def get_by_sys_id(snow_url, sys_id, auth_header, custom):
+def get_by_sys_id(snow_url, sys_id, auth_header, custom, profile):
     """
     Retrieve an existing change identified by sys_id.
 
@@ -235,7 +237,7 @@ def get_by_sys_id(snow_url, sys_id, auth_header, custom):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    path = resolve_endpoint(custom, "change_get", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     return send_request(url, "GET", auth_header)
 
@@ -382,7 +384,7 @@ def main():
             case "get":
                 if args.sys_id:
                     if not args.json: print(f"Retrieving change with sys_id {args.sys_id}...")
-                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header, custom=args.custom)
+                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header, custom=args.custom, profile=args.profile)
                     result_type = "single_change"
                 else:
                     if not args.json: print(f"Retrieving change with number {args.number}...")
