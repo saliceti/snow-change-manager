@@ -26,6 +26,7 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertIn("--snow-host", result.stdout)
         self.assertIn("--snow-user", result.stdout)
         self.assertIn("--snow-password", result.stdout)
+        self.assertIn("--custom", result.stdout)
 
     def test_missing_required_arguments_are_reported(self):
         result = self.run_cli(["--auth", "password", "get-template-id", "--name", "Any Template"])

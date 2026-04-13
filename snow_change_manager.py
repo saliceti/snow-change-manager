@@ -20,7 +20,26 @@ Authentication modes:
         --auth oauth requires:
             --client-id       OAuth client ID
             --client-secret   OAuth client secret
+
+Optional endpoint mode:
+        --custom            Use custom endpoint mappings for non-standard ServiceNow instances
 """
+
+DEFAULT_ENDPOINTS = {
+    "create": "/api/sn_chg_rest/change/standard/{standard_change_sys_id}",
+    "change": "/api/sn_chg_rest/change/{sys_id}",
+    "change_list": "/api/sn_chg_rest/change",
+    "template": "/api/sn_chg_rest/v1/change/standard/template",
+    "table_change_request": "/api/now/table/change_request/{sys_id}",
+}
+
+# Start with defaults so --custom is non-breaking; update paths per-instance as needed.
+CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
+
+
+def resolve_endpoint(custom, key, **params):
+    endpoints = CUSTOM_ENDPOINTS if custom else DEFAULT_ENDPOINTS
+    return endpoints[key].format(**params)
 
 def get_basic_auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
@@ -108,7 +127,7 @@ def get_datetime(minutes=0):
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
-def create(snow_url, snow_standard_change, auth_header, short_description):
+def create(snow_url, snow_standard_change, auth_header, short_description, custom):
     """
     Construct and POST a standard change using the provided parameters.
 
@@ -120,7 +139,8 @@ def create(snow_url, snow_standard_change, auth_header, short_description):
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    base_url = f"{snow_url}/api/sn_chg_rest/change/standard/{snow_standard_change}"
+    path = resolve_endpoint(custom, "create", standard_change_sys_id=snow_standard_change)
+    base_url = f"{snow_url}{path}"
     params = {
         "short_description": short_description,
         "state": "Scheduled",
@@ -132,7 +152,7 @@ def create(snow_url, snow_standard_change, auth_header, short_description):
     # Provide empty payload to force POST
     return send_request(url, "POST", auth_header)
 
-def update(snow_url, sys_id, auth_header, state):
+def update(snow_url, sys_id, auth_header, state, custom):
     """
     Update an existing change identified by sys_id via a PATCH request.
 
@@ -148,11 +168,12 @@ def update(snow_url, sys_id, auth_header, state):
     if state not in ("Implement", "Review", "Closed"):
         raise ValueError("state must be one of: Implement, Review, Closed")
 
-    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    url = f"{snow_url}{path}"
     fields = {"state": state} # Add work note here?
     return send_request(url, "PATCH", auth_header, payload=fields)
 
-def close(snow_url, sys_id, auth_header, result):
+def close(snow_url, sys_id, auth_header, result, custom):
     """
     Close an existing change identified by sys_id via a PATCH request.
 
@@ -174,11 +195,12 @@ def close(snow_url, sys_id, auth_header, result):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    url = f"{snow_url}{path}"
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
     return send_request(url, "PATCH", auth_header, payload=fields)
 
-def get_by_sys_id(snow_url, sys_id, auth_header):
+def get_by_sys_id(snow_url, sys_id, auth_header, custom):
     """
     Retrieve an existing change identified by sys_id.
 
@@ -190,10 +212,11 @@ def get_by_sys_id(snow_url, sys_id, auth_header):
 
     Returns (status, data).
     """
-    url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
+    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    url = f"{snow_url}{path}"
     return send_request(url, "GET", auth_header)
 
-def get_by_number(snow_url, number, auth_header):
+def get_by_number(snow_url, number, auth_header, custom):
     """
     Retrieve an existing change identified by number.
 
@@ -207,12 +230,13 @@ def get_by_number(snow_url, number, auth_header):
 
     Returns (status, data).
     """
-    base_url = f"{snow_url}/api/sn_chg_rest/change"
+    path = resolve_endpoint(custom, "change_list")
+    base_url = f"{snow_url}{path}"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", auth_header)
 
-def get_template_id(snow_url, auth_header, name):
+def get_template_id(snow_url, auth_header, name, custom):
     """
     Retrieve a standard change template by name.
 
@@ -226,12 +250,13 @@ def get_template_id(snow_url, auth_header, name):
 
     Returns (status, data).
     """
-    base_url = f"{snow_url}/api/sn_chg_rest/v1/change/standard/template"
+    path = resolve_endpoint(custom, "template")
+    base_url = f"{snow_url}{path}"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", auth_header)
 
-def post_comment(snow_url, sys_id, auth_header, comment):
+def post_comment(snow_url, sys_id, auth_header, comment, custom):
     """
     Post a comment to a change request using the Table API.
 
@@ -243,7 +268,8 @@ def post_comment(snow_url, sys_id, auth_header, comment):
 
     Returns (status, data).
     """
-    url = f"{snow_url}/api/now/table/change_request/{sys_id}"
+    path = resolve_endpoint(custom, "table_change_request", sys_id=sys_id)
+    url = f"{snow_url}{path}"
     payload = {"comments": comment} # work notes
     return send_request(url, "PATCH", auth_header, payload=payload)
 
@@ -260,6 +286,7 @@ def main():
     parser.add_argument("--snow-password", help="ServiceNow password (required with --auth password)")
     parser.add_argument("--client-id", help="OAuth client ID (required with --auth oauth)")
     parser.add_argument("--client-secret", help="OAuth client secret (required with --auth oauth)")
+    parser.add_argument("--custom", action="store_true", help="use custom API endpoint mappings")
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -313,37 +340,37 @@ def main():
             case "create":
                 if not args.json: print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
-                                      auth_header, short_description=args.short_description)
+                                      auth_header, short_description=args.short_description, custom=args.custom)
                 result_type = "single_change"
             case "update":
                 if not args.json: print(f"Updating change {args.sys_id} with state {args.state}...")
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
-                    status, data = close(snow_url, args.sys_id, auth_header, result=args.result)
+                    status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom)
                 else:
-                    status, data = update(snow_url, args.sys_id, auth_header, state=args.state)
+                    status, data = update(snow_url, args.sys_id, auth_header, state=args.state, custom=args.custom)
                 result_type = "single_change"
             case "close":
                 if not args.json: print(f"Closing change {args.sys_id} with result {args.result}...")
-                status, data = close(snow_url, args.sys_id, auth_header, result=args.result)
+                status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
                     if not args.json: print(f"Retrieving change with sys_id {args.sys_id}...")
-                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header)
+                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header, custom=args.custom)
                     result_type = "single_change"
                 else:
                     if not args.json: print(f"Retrieving change with number {args.number}...")
-                    status, data = get_by_number(snow_url, args.number, auth_header)
+                    status, data = get_by_number(snow_url, args.number, auth_header, custom=args.custom)
                     result_type = "change_list"
             case "get-template-id":
                 print(f"Retrieving template \"{args.name}\"...")
-                status, data = get_template_id(snow_url, auth_header, name=args.name)
+                status, data = get_template_id(snow_url, auth_header, name=args.name, custom=args.custom)
                 result_type = "template_list"
             case "post-comment":
                 print(f"Posting comment...")
-                status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment)
+                status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment, custom=args.custom)
                 result_type = "table_item"
             case _:
                 parser.error("unknown command")
