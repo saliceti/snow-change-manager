@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import base64
 import json
 import urllib.parse
@@ -10,13 +9,13 @@ import sys
 import argparse
 from datetime import datetime,timedelta
 
-ENV_HELP = """Required environment variables:
-    SNOW_HOST      ServiceNow instance host only (for example: example.service-now.com)
+CLI_HELP = """Required command line arguments:
+    --snow-host      ServiceNow instance host only (for example: example.service-now.com)
 
 Authentication modes:
         --auth password requires:
-            SNOW_USER      ServiceNow username used for API authentication
-            SNOW_PASSWORD  ServiceNow password used for API authentication
+            --snow-user      ServiceNow username used for API authentication
+            --snow-password  ServiceNow password used for API authentication
 
         --auth oauth requires:
             --client-id       OAuth client ID
@@ -27,29 +26,26 @@ def get_basic_auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
-def validate_environment(parser, args):
-    required = ["SNOW_HOST"]
-    if args.auth == "password":
-        required.extend(["SNOW_USER", "SNOW_PASSWORD"])
-
-    values = {}
+def validate_cli_arguments(parser, args):
     missing = []
 
-    for name in required:
-        value = os.environ.get(name)
-        if value is None or not value.strip():
-            missing.append(name)
-        else:
-            values[name] = value
+    if not args.snow_host or not args.snow_host.strip():
+        missing.append("--snow-host")
+
+    if args.auth == "password":
+        if not args.snow_user or not args.snow_user.strip():
+            missing.append("--snow-user")
+        if not args.snow_password or not args.snow_password.strip():
+            missing.append("--snow-password")
+
+    if args.auth == "oauth":
+        if not args.client_id:
+            missing.append("--client-id")
+        if not args.client_secret:
+            missing.append("--client-secret")
 
     if missing:
-        parser.error("Missing required environment variable(s): " + ", ".join(missing))
-
-    snow_host = values["SNOW_HOST"].strip()
-    snow_url = f"https://{snow_host}"
-
-    return snow_url
-
+        parser.error("Missing required command line argument(s): " + ", ".join(missing))
 
 def get_oauth_bearer_token(snow_url, client_id, client_secret):
     url = f"{snow_url}/oauth_token.do"
@@ -254,11 +250,14 @@ def post_comment(snow_url, sys_id, auth_header, comment):
 def main():
     parser = argparse.ArgumentParser(
         description="Create or update ServiceNow standard changes",
-        epilog=ENV_HELP,
+        epilog=CLI_HELP,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--auth", choices=["password", "oauth"], required=True,
                         help="authentication mode")
+    parser.add_argument("--snow-host", help="ServiceNow instance host (required)")
+    parser.add_argument("--snow-user", help="ServiceNow username (required with --auth password)")
+    parser.add_argument("--snow-password", help="ServiceNow password (required with --auth password)")
     parser.add_argument("--client-id", help="OAuth client ID (required with --auth oauth)")
     parser.add_argument("--client-secret", help="OAuth client secret (required with --auth oauth)")
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
@@ -299,16 +298,15 @@ def main():
     sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
 
     args = parser.parse_args()
-    snow_url = validate_environment(parser, args)
+    validate_cli_arguments(parser, args)
+    snow_url = f"https://{args.snow_host.strip()}"
 
     try:
         if args.auth == "password":
-            user = os.environ["SNOW_USER"].strip()
-            password = os.environ["SNOW_PASSWORD"].strip()
+            user = args.snow_user.strip()
+            password = args.snow_password.strip()
             auth_header = get_basic_auth_header(user, password)
         else:
-            if (not args.client_id or not args.client_secret):
-                parser.error("--client-id and --client-secret are required when --auth oauth")
             auth_header = get_oauth_bearer_token(snow_url, args.client_id, args.client_secret)
 
         match args.command:

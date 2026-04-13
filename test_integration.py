@@ -15,7 +15,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Verify required environment variables are set."""
+        """Verify required test inputs are set."""
         cls.snow_host = os.environ.get("SNOW_HOST")
         cls.snow_user = os.environ.get("SNOW_USER")
         cls.snow_password = os.environ.get("SNOW_PASSWORD")
@@ -40,7 +40,14 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         Execute the CLI with given arguments.
         Returns (returncode, stdout, stderr).
         """
-        cmd = [sys.executable, self.cli_script, "--auth", "password"] + list(args)
+        cmd = [
+            sys.executable,
+            self.cli_script,
+            "--auth", "password",
+            "--snow-host", self.snow_host,
+            "--snow-user", self.snow_user,
+            "--snow-password", self.snow_password,
+        ] + list(args)
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode, result.stdout, result.stderr
 
