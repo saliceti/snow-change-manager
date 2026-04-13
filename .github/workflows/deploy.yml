@@ -69,43 +69,10 @@ jobs:
       contents: write
     outputs:
       CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
-      SNOW_AUTH_ARGS_JSON: ${{ steps.prepare-snow-auth.outputs.SNOW_AUTH_ARGS_JSON }}
-      SNOW_AUTH_ARGS_STRING: ${{ steps.prepare-snow-auth.outputs.SNOW_AUTH_ARGS_STRING }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-
-      - name: Prepare ServiceNow auth args
-        id: prepare-snow-auth
-        shell: python -u {0}
-        run: |
-          import json
-          import os
-          import shlex
-
-          snow_auth = os.environ['SNOW_AUTH']
-          snow_args = [
-            '--auth', snow_auth,
-            '--snow-host', os.environ['SNOW_HOST'],
-          ]
-
-          if snow_auth == 'password':
-            snow_args.extend([
-              '--snow-user', os.environ['SNOW_USER'],
-              '--snow-password', os.environ['SNOW_PASSWORD'],
-            ])
-          elif snow_auth == 'oauth':
-            snow_args.extend([
-              '--client-id', os.environ['SNOW_CLIENT_ID'],
-              '--client-secret', os.environ['SNOW_CLIENT_SECRET'],
-            ])
-          else:
-            raise RuntimeError(f'Unsupported SNOW_AUTH value: {snow_auth}')
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            print(f"SNOW_AUTH_ARGS_JSON={json.dumps(snow_args)}", file=f)
-            print(f"SNOW_AUTH_ARGS_STRING={shlex.join(snow_args)}", file=f)
 
       - name: Bump version and push tag
         uses: anothrNick/github-tag-action@v1
@@ -234,14 +201,31 @@ jobs:
         id: create-change
         shell: python -u {0}
         run: |
-          import json
           import os
           import subprocess
 
           short_description = os.environ['SHORT_DESCRIPTION']
           change_html       = os.environ['CHANGE_HTML']
 
-          snow_args = ['./snow_change_manager.py'] + json.loads(os.environ['SNOW_AUTH_ARGS_JSON'])
+          snow_auth = os.environ['SNOW_AUTH']
+          snow_args = [
+            './snow_change_manager.py',
+            '--auth', snow_auth,
+            '--snow-host', os.environ['SNOW_HOST'],
+          ]
+
+          if snow_auth == 'password':
+            snow_args.extend([
+              '--snow-user', os.environ['SNOW_USER'],
+              '--snow-password', os.environ['SNOW_PASSWORD'],
+            ])
+          elif snow_auth == 'oauth':
+            snow_args.extend([
+              '--client-id', os.environ['SNOW_CLIENT_ID'],
+              '--client-secret', os.environ['SNOW_CLIENT_SECRET'],
+            ])
+          else:
+            raise RuntimeError(f'Unsupported SNOW_AUTH value: {snow_auth}')
 
           result = subprocess.run(
             snow_args + [
@@ -280,7 +264,6 @@ jobs:
         env:
           SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
           CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
-          SNOW_AUTH_ARGS_JSON: ${{ steps.prepare-snow-auth.outputs.SNOW_AUTH_ARGS_JSON }}
 
       - name: Add create change summary
         shell: python -u {0}
@@ -320,8 +303,6 @@ jobs:
 
     outputs:
       CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-      SNOW_AUTH_ARGS_JSON: ${{ needs.create-snow-change.outputs.SNOW_AUTH_ARGS_JSON }}
-      SNOW_AUTH_ARGS_STRING: ${{ needs.create-snow-change.outputs.SNOW_AUTH_ARGS_STRING }}
 
     steps:
       - name: Checkout code
@@ -329,12 +310,18 @@ jobs:
 
       - name: Start change
         run: |
-          eval "./snow_change_manager.py $SNOW_AUTH_ARGS_STRING update --sys-id \"$CHANGE_SYS_ID\" --state Implement"
+          if [[ "$SNOW_AUTH" == "password" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Implement
+          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Implement
+          else
+            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
+            exit 1
+          fi
 
           echo Change started successfully. Ready for deployment.
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_AUTH_ARGS_STRING: ${{ needs.create-snow-change.outputs.SNOW_AUTH_ARGS_STRING }}
 
       - name: Deploy software
         id: deploy-software
@@ -362,7 +349,14 @@ jobs:
       - name: Review change
         if: always()
         run: |
-          eval "./snow_change_manager.py $SNOW_AUTH_ARGS_STRING update --sys-id \"$CHANGE_SYS_ID\" --state Review"
+          if [[ "$SNOW_AUTH" == "password" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Review
+          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Review
+          else
+            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
+            exit 1
+          fi
 
           if [[ "${{ job.status }}" != "success" ]]; then
             message="The deployment was unsuccessul"
@@ -372,12 +366,20 @@ jobs:
 
           echo "$message"
 
-          eval "./snow_change_manager.py $SNOW_AUTH_ARGS_STRING post-comment --sys-id \"$CHANGE_SYS_ID\" --comment \"$message
+          if [[ "$SNOW_AUTH" == "password" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
             Deployment log:
-            ${{ steps.deploy-software.outputs.LOG}}\""
+            ${{ steps.deploy-software.outputs.LOG}}"
+          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+            Deployment log:
+            ${{ steps.deploy-software.outputs.LOG}}"
+          else
+            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
+            exit 1
+          fi
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_AUTH_ARGS_STRING: ${{ needs.create-snow-change.outputs.SNOW_AUTH_ARGS_STRING }}
 
       - name: Run smoke test
         id: smoke-test
@@ -413,12 +415,20 @@ jobs:
 
           echo "$message"
 
-          eval "./snow_change_manager.py $SNOW_AUTH_ARGS_STRING post-comment --sys-id \"$CHANGE_SYS_ID\" --comment \"$message
+          if [[ "$SNOW_AUTH" == "password" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
             Smoke test log:
-            ${{ steps.smoke-test.outputs.LOG}}\""
+            ${{ steps.smoke-test.outputs.LOG}}"
+          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+            Smoke test log:
+            ${{ steps.smoke-test.outputs.LOG}}"
+          else
+            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
+            exit 1
+          fi
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
-          SNOW_AUTH_ARGS_STRING: ${{ needs.create-snow-change.outputs.SNOW_AUTH_ARGS_STRING }}
 
   close-change:
     name: Close ServiceNow change
@@ -438,9 +448,15 @@ jobs:
             result=unsuccessful
           fi
 
-          eval "./snow_change_manager.py $SNOW_AUTH_ARGS_STRING update --sys-id \"$CHANGE_SYS_ID\" --state Closed --result \"$result\""
+          if [[ "$SNOW_AUTH" == "password" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
+          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
+            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
+          else
+            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
+            exit 1
+          fi
 
           echo Change closed with result: $result
         env:
           CHANGE_SYS_ID: ${{ needs.deploy.outputs.CHANGE_SYS_ID }}
-          SNOW_AUTH_ARGS_STRING: ${{ needs.deploy.outputs.SNOW_AUTH_ARGS_STRING }}
