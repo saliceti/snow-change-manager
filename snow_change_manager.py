@@ -36,6 +36,7 @@ DEFAULT_ENDPOINTS = {
 
 # Start with defaults so --custom is non-breaking; update paths per-instance as needed.
 CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
+CUSTOM_ENDPOINTS["create"] = "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"
 CUSTOM_ENDPOINTS["template"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"
 
 
@@ -143,7 +144,7 @@ def extract_api_value(field, preferred_key="value"):
             return field.get("display_value")
     return field
 
-def create(snow_url, snow_standard_change, auth_header, short_description, custom):
+def create(snow_url, snow_standard_change, auth_header, short_description, custom, profile):
     """
     Construct and POST a standard change using the provided parameters.
 
@@ -155,7 +156,13 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    path = resolve_endpoint(custom, "create", standard_change_sys_id=snow_standard_change)
+    path = resolve_endpoint(
+        custom,
+        "create",
+        standard_change_sys_id=snow_standard_change,
+        template_id=snow_standard_change,
+        profile=profile,
+    )
     base_url = f"{snow_url}{path}"
     params = {
         "short_description": short_description,
@@ -357,7 +364,7 @@ def main():
             case "create":
                 if not args.json: print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
-                                      auth_header, short_description=args.short_description, custom=args.custom)
+                                      auth_header, short_description=args.short_description, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "update":
                 if not args.json: print(f"Updating change {args.sys_id} with state {args.state}...")
@@ -407,13 +414,18 @@ def main():
         if args.json:
             print(json.dumps(data, indent=2))
         else:
+            print(data)
             match result_type:
                 case "single_change":
-                    print("CHANGE_NUMBER=" + data["result"]["number"]["value"])
-                    print("CHANGE_SYS_ID=" + data["result"]["sys_id"]["value"])
-                    print("CHANGE_STATE=" + data["result"]["state"]["display_value"])
-                    print("CHANGE_SYS_UPDATED_ON=\"" + data["result"]["sys_updated_on"]["value"] + "\"")
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']['value']}")
+                    change_number = extract_api_value(data["result"].get("number"))
+                    change_sys_id = extract_api_value(data["result"].get("sys_id"))
+                    change_state = extract_api_value(data["result"].get("state"), preferred_key="display_value")
+                    change_updated_on = extract_api_value(data["result"].get("sys_updated_on"))
+                    print("CHANGE_NUMBER=" + str(change_number))
+                    print("CHANGE_SYS_ID=" + str(change_sys_id))
+                    print("CHANGE_STATE=" + str(change_state))
+                    print("CHANGE_SYS_UPDATED_ON=\"" + str(change_updated_on) + "\"")
+                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
                 case "change_list":
                     print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
                     print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
