@@ -23,6 +23,7 @@ Authentication modes:
 
 Optional endpoint mode:
         --custom            Use custom endpoint mappings for non-standard ServiceNow instances
+    --profile           Profile ID (required with --custom)
 """
 
 DEFAULT_ENDPOINTS = {
@@ -35,6 +36,7 @@ DEFAULT_ENDPOINTS = {
 
 # Start with defaults so --custom is non-breaking; update paths per-instance as needed.
 CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
+CUSTOM_ENDPOINTS["template"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"
 
 
 def resolve_endpoint(custom, key, **params):
@@ -62,6 +64,9 @@ def validate_cli_arguments(parser, args):
             missing.append("--client-id")
         if not args.client_secret:
             missing.append("--client-secret")
+
+    if args.custom and (not args.profile or not args.profile.strip()):
+        missing.append("--profile")
 
     if missing:
         parser.error("Missing required command line argument(s): " + ", ".join(missing))
@@ -126,6 +131,17 @@ def get_datetime(minutes=0):
     datetime_now = datetime.now()
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def extract_api_value(field, preferred_key="value"):
+    if isinstance(field, dict):
+        if preferred_key in field:
+            return field.get(preferred_key)
+        if "value" in field:
+            return field.get("value")
+        if "display_value" in field:
+            return field.get("display_value")
+    return field
 
 def create(snow_url, snow_standard_change, auth_header, short_description, custom):
     """
@@ -236,7 +252,7 @@ def get_by_number(snow_url, number, auth_header, custom):
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", auth_header)
 
-def get_template_id(snow_url, auth_header, name, custom):
+def get_template_id(snow_url, auth_header, name, custom, profile):
     """
     Retrieve a standard change template by name.
 
@@ -250,7 +266,7 @@ def get_template_id(snow_url, auth_header, name, custom):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "template")
+    path = resolve_endpoint(custom, "template", profile=profile)
     base_url = f"{snow_url}{path}"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
@@ -287,6 +303,7 @@ def main():
     parser.add_argument("--client-id", help="OAuth client ID (required with --auth oauth)")
     parser.add_argument("--client-secret", help="OAuth client secret (required with --auth oauth)")
     parser.add_argument("--custom", action="store_true", help="use custom API endpoint mappings")
+    parser.add_argument("--profile", help="profile ID (required with --custom)")
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -366,7 +383,13 @@ def main():
                     result_type = "change_list"
             case "get-template-id":
                 print(f"Retrieving template \"{args.name}\"...")
-                status, data = get_template_id(snow_url, auth_header, name=args.name, custom=args.custom)
+                status, data = get_template_id(
+                    snow_url,
+                    auth_header,
+                    name=args.name,
+                    custom=args.custom,
+                    profile=args.profile,
+                )
                 result_type = "template_list"
             case "post-comment":
                 print(f"Posting comment...")
@@ -398,9 +421,10 @@ def main():
                     print("CHANGE_SYS_UPDATED_ON=\"" + data["result"][0]["sys_updated_on"]["value"] + "\"")
                     print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
                 case "template_list":
-                    print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+                    template_id = extract_api_value(data["result"][0].get("sys_id"))
+                    print("TEMPLATE_ID=" + str(template_id))
                     print("TEMPLATE_NAME=\"" + args.name + "\"")
-                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={data['result'][0]['sys_id']['value']}")
+                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
                 case "table_item":
                     print("CHANGE_NUMBER=" + data["result"]["number"])
                     print("CHANGE_SYS_ID=" + data["result"]["sys_id"])

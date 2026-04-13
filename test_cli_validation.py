@@ -27,6 +27,7 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertIn("--snow-user", result.stdout)
         self.assertIn("--snow-password", result.stdout)
         self.assertIn("--custom", result.stdout)
+        self.assertIn("--profile", result.stdout)
 
     def test_missing_required_arguments_are_reported(self):
         result = self.run_cli(["--auth", "password", "get-template-id", "--name", "Any Template"])
@@ -61,6 +62,21 @@ class TestCliEnvironmentValidation(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("--result is required when --state Closed", result.stderr)
+
+    def test_custom_mode_requires_profile(self):
+        result = self.run_cli(
+            [
+                "--auth", "oauth",
+                "--snow-host", "example.service-now.com",
+                "--client-id", "id",
+                "--client-secret", "secret",
+                "--custom",
+                "get-template-id", "--name", "Any Template"
+            ],
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Missing required command line argument(s): --profile", result.stderr)
 
 
 if __name__ == "__main__":
