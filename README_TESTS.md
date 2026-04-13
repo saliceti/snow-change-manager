@@ -6,6 +6,7 @@ The integration tests require:
 - A ServiceNow instance (dev/test environment recommended, NOT production)
 - Valid ServiceNow credentials
 - A standard change template sys_id. The template must have an assignment group set.
+- The CLI auth mode is explicit; integration tests use --auth password
 
 ## Environment Variables
 
@@ -96,6 +97,7 @@ If the CLI returns `401 Unauthorized`:
 - Verify SNOW_USER and SNOW_PASSWORD are correct
 - Check that the user has API access in ServiceNow
 - Verify Basic auth is enabled in your ServiceNow instance
+- Ensure commands are executed with --auth password when using username/password
 
 ### Change Template Not Found (404)
 If the CLI returns `404 Not Found`:

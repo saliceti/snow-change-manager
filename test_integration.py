@@ -40,7 +40,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         Execute the CLI with given arguments.
         Returns (returncode, stdout, stderr).
         """
-        cmd = [sys.executable, self.cli_script] + list(args)
+        cmd = [sys.executable, self.cli_script, "--auth", "password"] + list(args)
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode, result.stdout, result.stderr
 

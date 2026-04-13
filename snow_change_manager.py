@@ -12,16 +12,26 @@ from datetime import datetime,timedelta
 
 ENV_HELP = """Required environment variables:
     SNOW_HOST      ServiceNow instance host only (for example: example.service-now.com)
-    SNOW_USER      ServiceNow username used for API authentication
-    SNOW_PASSWORD  ServiceNow password used for API authentication
+
+Authentication modes:
+        --auth password requires:
+            SNOW_USER      ServiceNow username used for API authentication
+            SNOW_PASSWORD  ServiceNow password used for API authentication
+
+        --auth oauth requires:
+            --client-id       OAuth client ID
+            --client-secret   OAuth client secret
 """
 
-def _auth_header(user, password):
+def get_basic_auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
-def validate_environment(parser):
-    required = ("SNOW_HOST", "SNOW_USER", "SNOW_PASSWORD")
+def validate_environment(parser, args):
+    required = ["SNOW_HOST"]
+    if args.auth == "password":
+        required.extend(["SNOW_USER", "SNOW_PASSWORD"])
+
     values = {}
     missing = []
 
@@ -38,9 +48,38 @@ def validate_environment(parser):
     snow_host = values["SNOW_HOST"].strip()
     snow_url = f"https://{snow_host}"
 
-    return snow_url, values["SNOW_USER"], values["SNOW_PASSWORD"]
+    return snow_url
 
-def send_request(url, method, user, password, payload=None, extra_headers=None):
+
+def get_oauth_bearer_token(snow_url, client_id, client_secret):
+    url = f"{snow_url}/oauth_token.do"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    payload = urllib.parse.urlencode(
+        {
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    with urllib.request.urlopen(req) as resp:
+        body = resp.read().decode("utf-8")
+        try:
+            data = json.loads(body) if body else {}
+        except json.JSONDecodeError as exc:
+            raise ValueError("OAuth token response is not valid JSON") from exc
+
+    access_token = data.get("access_token") if isinstance(data, dict) else None
+    if not access_token:
+        raise ValueError("OAuth token response did not include access_token")
+
+    return f"Bearer {access_token}"
+
+def send_request(url, method, auth_header, payload=None, extra_headers=None):
     """
     Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
     Returns (status, data) where data is parsed JSON when possible.
@@ -48,7 +87,7 @@ def send_request(url, method, user, password, payload=None, extra_headers=None):
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     if extra_headers:
         headers.update(extra_headers)
-    headers["Authorization"] = _auth_header(user, password)
+    headers["Authorization"] = auth_header
 
     if isinstance(payload, dict):
         data = json.dumps(payload).encode("utf-8")
@@ -73,7 +112,7 @@ def get_datetime(minutes=0):
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
-def create(snow_url, snow_standard_change, user, password, short_description):
+def create(snow_url, snow_standard_change, auth_header, short_description):
     """
     Construct and POST a standard change using the provided parameters.
 
@@ -95,9 +134,9 @@ def create(snow_url, snow_standard_change, user, password, short_description):
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty payload to force POST
-    return send_request(url, "POST", user, password)
+    return send_request(url, "POST", auth_header)
 
-def update(snow_url, sys_id, user, password, state):
+def update(snow_url, sys_id, auth_header, state):
     """
     Update an existing change identified by sys_id via a PATCH request.
 
@@ -115,9 +154,9 @@ def update(snow_url, sys_id, user, password, state):
 
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
     fields = {"state": state} # Add work note here?
-    return send_request(url, "PATCH", user, password, payload=fields)
+    return send_request(url, "PATCH", auth_header, payload=fields)
 
-def close(snow_url, sys_id, user, password, result):
+def close(snow_url, sys_id, auth_header, result):
     """
     Close an existing change identified by sys_id via a PATCH request.
 
@@ -141,9 +180,9 @@ def close(snow_url, sys_id, user, password, result):
 
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
-    return send_request(url, "PATCH", user, password, payload=fields)
+    return send_request(url, "PATCH", auth_header, payload=fields)
 
-def get_by_sys_id(snow_url, sys_id, user, password):
+def get_by_sys_id(snow_url, sys_id, auth_header):
     """
     Retrieve an existing change identified by sys_id.
 
@@ -156,9 +195,9 @@ def get_by_sys_id(snow_url, sys_id, user, password):
     Returns (status, data).
     """
     url = f"{snow_url}/api/sn_chg_rest/change/{sys_id}"
-    return send_request(url, "GET", user, password)
+    return send_request(url, "GET", auth_header)
 
-def get_by_number(snow_url, number, user, password):
+def get_by_number(snow_url, number, auth_header):
     """
     Retrieve an existing change identified by number.
 
@@ -175,9 +214,9 @@ def get_by_number(snow_url, number, user, password):
     base_url = f"{snow_url}/api/sn_chg_rest/change"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", user, password)
+    return send_request(url, "GET", auth_header)
 
-def get_template_id(snow_url, user, password, name):
+def get_template_id(snow_url, auth_header, name):
     """
     Retrieve a standard change template by name.
 
@@ -194,9 +233,9 @@ def get_template_id(snow_url, user, password, name):
     base_url = f"{snow_url}/api/sn_chg_rest/v1/change/standard/template"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", user, password)
+    return send_request(url, "GET", auth_header)
 
-def post_comment(snow_url, sys_id, user, password, comment):
+def post_comment(snow_url, sys_id, auth_header, comment):
     """
     Post a comment to a change request using the Table API.
 
@@ -210,7 +249,7 @@ def post_comment(snow_url, sys_id, user, password, comment):
     """
     url = f"{snow_url}/api/now/table/change_request/{sys_id}"
     payload = {"comments": comment} # work notes
-    return send_request(url, "PATCH", user, password, payload=payload)
+    return send_request(url, "PATCH", auth_header, payload=payload)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -218,6 +257,10 @@ def main():
         epilog=ENV_HELP,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--auth", choices=["password", "oauth"], required=True,
+                        help="authentication mode")
+    parser.add_argument("--client-id", help="OAuth client ID (required with --auth oauth)")
+    parser.add_argument("--client-secret", help="OAuth client secret (required with --auth oauth)")
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -256,44 +299,53 @@ def main():
     sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
 
     args = parser.parse_args()
-    snow_url, user, password = validate_environment(parser)
+    snow_url = validate_environment(parser, args)
 
     try:
+        if args.auth == "password":
+            user = os.environ["SNOW_USER"].strip()
+            password = os.environ["SNOW_PASSWORD"].strip()
+            auth_header = get_basic_auth_header(user, password)
+        else:
+            if (not args.client_id or not args.client_secret):
+                parser.error("--client-id and --client-secret are required when --auth oauth")
+            auth_header = get_oauth_bearer_token(snow_url, args.client_id, args.client_secret)
+
         match args.command:
             case "create":
                 if not args.json: print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
-                                      user, password, short_description=args.short_description)
+                                      auth_header, short_description=args.short_description)
                 result_type = "single_change"
             case "update":
                 if not args.json: print(f"Updating change {args.sys_id} with state {args.state}...")
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
-                    status, data = close(snow_url, args.sys_id, user, password, result=args.result)
+                    status, data = close(snow_url, args.sys_id, auth_header, result=args.result)
                 else:
-                    status, data = update(snow_url, args.sys_id, user, password, state=args.state)
+                    status, data = update(snow_url, args.sys_id, auth_header, state=args.state)
                 result_type = "single_change"
             case "close":
                 if not args.json: print(f"Closing change {args.sys_id} with result {args.result}...")
-                status, data = close(snow_url, args.sys_id, user, password, result=args.result)
+                status, data = close(snow_url, args.sys_id, auth_header, result=args.result)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
                     if not args.json: print(f"Retrieving change with sys_id {args.sys_id}...")
-                    status, data = get_by_sys_id(snow_url, args.sys_id, user, password)
+                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header)
                     result_type = "single_change"
                 else:
                     if not args.json: print(f"Retrieving change with number {args.number}...")
-                    status, data = get_by_number(snow_url, args.number, user, password)
+                    status, data = get_by_number(snow_url, args.number, auth_header)
                     result_type = "change_list"
             case "get-template-id":
                 print(f"Retrieving template \"{args.name}\"...")
-                status, data = get_template_id(snow_url, user, password, name=args.name)
+                status, data = get_template_id(snow_url, auth_header, name=args.name)
                 result_type = "template_list"
             case "post-comment":
                 print(f"Posting comment...")
-                status, data = post_comment(snow_url, args.sys_id, user, password, comment=args.comment)
+                status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment)
                 result_type = "table_item"
             case _:
                 parser.error("unknown command")
@@ -336,6 +388,9 @@ def main():
         sys.exit(1)
     except urllib.error.URLError as e:
         print("Request failed:", e.reason, file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
