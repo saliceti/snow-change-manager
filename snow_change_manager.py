@@ -283,7 +283,7 @@ def get_template_id(snow_url, auth_header, name, custom, profile):
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, "GET", auth_header)
 
-def post_comment(snow_url, sys_id, auth_header, comment, custom):
+def post_comment(snow_url, sys_id, auth_header, comment, custom, profile):
     """
     Post a comment to a change request using the Table API.
 
@@ -295,10 +295,12 @@ def post_comment(snow_url, sys_id, auth_header, comment, custom):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "table_change_request", sys_id=sys_id)
+    endpoint_key = "update" if custom else "table_change_request"
+    path = resolve_endpoint(custom, endpoint_key, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     payload = {"comments": comment} # work notes
-    return send_request(url, "PATCH", auth_header, payload=payload)
+    method = "PUT" if custom else "PATCH"
+    return send_request(url, method, auth_header, payload=payload)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -404,7 +406,7 @@ def main():
                 result_type = "template_list"
             case "post-comment":
                 print(f"Posting comment...")
-                status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment, custom=args.custom)
+                status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment, custom=args.custom, profile=args.profile)
                 result_type = "table_item"
             case _:
                 parser.error("unknown command")
