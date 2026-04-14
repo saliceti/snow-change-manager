@@ -199,7 +199,7 @@ def update(snow_url, sys_id, auth_header, state, custom, profile):
     method = "PUT" if custom else "PATCH"
     return send_request(url, method, auth_header, payload=fields)
 
-def close(snow_url, sys_id, auth_header, result, custom):
+def close(snow_url, sys_id, auth_header, result, custom, profile):
     """
     Close an existing change identified by sys_id via a PATCH request.
 
@@ -221,10 +221,11 @@ def close(snow_url, sys_id, auth_header, result, custom):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    path = resolve_endpoint(custom, "update", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
-    return send_request(url, "PATCH", auth_header, payload=fields)
+    method = "PUT" if custom else "PATCH"
+    return send_request(url, method, auth_header, payload=fields)
 
 def get_by_sys_id(snow_url, sys_id, auth_header, custom, profile):
     """
@@ -374,13 +375,13 @@ def main():
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
-                    status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom)
+                    status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom, profile=args.profile)
                 else:
                     status, data = update(snow_url, args.sys_id, auth_header, state=args.state, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "close":
                 if not args.json: print(f"Closing change {args.sys_id} with result {args.result}...")
-                status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom)
+                status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
