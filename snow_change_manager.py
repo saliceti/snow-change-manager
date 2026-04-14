@@ -28,6 +28,7 @@ Optional endpoint mode:
 
 DEFAULT_ENDPOINTS = {
     "create": "/api/sn_chg_rest/change/standard/{standard_change_sys_id}",
+    "update": "/api/sn_chg_rest/change/{sys_id}",
     "change": "/api/sn_chg_rest/change/{sys_id}",
     "change_get": "/api/sn_chg_rest/change/{sys_id}",
     "change_list": "/api/sn_chg_rest/change",
@@ -38,6 +39,7 @@ DEFAULT_ENDPOINTS = {
 # Start with defaults so --custom is non-breaking; update paths per-instance as needed.
 CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
 CUSTOM_ENDPOINTS["create"] = "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"
+CUSTOM_ENDPOINTS["update"] = "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{sys_id}"
 CUSTOM_ENDPOINTS["template"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"
 CUSTOM_ENDPOINTS["change_get"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{sys_id}"
 
@@ -177,7 +179,7 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
     # Provide empty payload to force POST
     return send_request(url, "POST", auth_header)
 
-def update(snow_url, sys_id, auth_header, state, custom):
+def update(snow_url, sys_id, auth_header, state, custom, profile):
     """
     Update an existing change identified by sys_id via a PATCH request.
 
@@ -190,13 +192,12 @@ def update(snow_url, sys_id, auth_header, state, custom):
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    if state not in ("Implement", "Review", "Closed"):
-        raise ValueError("state must be one of: Implement, Review, Closed")
 
-    path = resolve_endpoint(custom, "change", sys_id=sys_id)
+    path = resolve_endpoint(custom, "update", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": state} # Add work note here?
-    return send_request(url, "PATCH", auth_header, payload=fields)
+    method = "PUT" if custom else "PATCH"
+    return send_request(url, method, auth_header, payload=fields)
 
 def close(snow_url, sys_id, auth_header, result, custom):
     """
@@ -375,7 +376,7 @@ def main():
                         parser.error("--result is required when --state Closed")
                     status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom)
                 else:
-                    status, data = update(snow_url, args.sys_id, auth_header, state=args.state, custom=args.custom)
+                    status, data = update(snow_url, args.sys_id, auth_header, state=args.state, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "close":
                 if not args.json: print(f"Closing change {args.sys_id} with result {args.result}...")
