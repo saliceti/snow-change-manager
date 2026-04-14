@@ -26,27 +26,29 @@ Optional endpoint mode:
     --profile           Profile ID (required with --custom)
 """
 
-DEFAULT_ENDPOINTS = {
-    "create": "/api/sn_chg_rest/change/standard/{standard_change_sys_id}",
-    "update": "/api/sn_chg_rest/change/{sys_id}",
-    "change": "/api/sn_chg_rest/change/{sys_id}",
-    "change_get": "/api/sn_chg_rest/change/{sys_id}",
-    "change_list": "/api/sn_chg_rest/change",
-    "template": "/api/sn_chg_rest/v1/change/standard/template",
-    "table_change_request": "/api/now/table/change_request/{sys_id}",
+DEFAULT_ROUTES = {
+    "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
+    "update": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
+    "close": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
+    "get_by_sys_id": {"method": "GET", "path": "/api/sn_chg_rest/change/{sys_id}"},
+    "get_by_number": {"method": "GET", "path": "/api/sn_chg_rest/change"},
+    "get_template_id": {"method": "GET", "path": "/api/sn_chg_rest/v1/change/standard/template"},
+    "post_comment": {"method": "PATCH", "path": "/api/now/table/change_request/{sys_id}"},
 }
 
-# Start with defaults so --custom is non-breaking; update paths per-instance as needed.
-CUSTOM_ENDPOINTS = dict(DEFAULT_ENDPOINTS)
-CUSTOM_ENDPOINTS["create"] = "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"
-CUSTOM_ENDPOINTS["update"] = "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{sys_id}"
-CUSTOM_ENDPOINTS["template"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"
-CUSTOM_ENDPOINTS["change_get"] = "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{sys_id}"
+CUSTOM_ROUTES = {
+    "create": { "method": "POST", "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"},
+    "update": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{sys_id}"},
+    "close": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{sys_id}"},
+    "get_by_sys_id": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{sys_id}"},
+    "get_template_id": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
+    "post_comment": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{sys_id}"}
+}
 
-
-def resolve_endpoint(custom, key, **params):
-    endpoints = CUSTOM_ENDPOINTS if custom else DEFAULT_ENDPOINTS
-    return endpoints[key].format(**params)
+def resolve_endpoint(custom, function_name, **params):
+    routes = CUSTOM_ROUTES if custom else DEFAULT_ROUTES
+    route = routes[function_name]
+    return route["method"], route["path"].format(**params)
 
 def get_basic_auth_header(user, password):
     creds = f"{user}:{password}".encode("utf-8")
@@ -153,17 +155,16 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
     Construct and POST a standard change using the provided parameters.
 
     Uses the ServiceNow "Standard Change" REST endpoint:
-      POST /api/sn_chg_rest/change/standard/{standard_change_sys_id}
+      POST /api/sn_chg_rest/change/standard/{template_id}
 
     See ServiceNow Change Management API docs for details:
     https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
-    path = resolve_endpoint(
+    method, path = resolve_endpoint(
         custom,
         "create",
-        standard_change_sys_id=snow_standard_change,
         template_id=snow_standard_change,
         profile=profile,
     )
@@ -177,7 +178,7 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
     url = base_url + "?" + urllib.parse.urlencode(params)
 
     # Provide empty payload to force POST
-    return send_request(url, "POST", auth_header)
+    return send_request(url, method, auth_header)
 
 def update(snow_url, sys_id, auth_header, state, custom, profile):
     """
@@ -193,10 +194,9 @@ def update(snow_url, sys_id, auth_header, state, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    path = resolve_endpoint(custom, "update", sys_id=sys_id, profile=profile)
+    method, path = resolve_endpoint(custom, "update", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": state} # Add work note here?
-    method = "PUT" if custom else "PATCH"
     return send_request(url, method, auth_header, payload=fields)
 
 def close(snow_url, sys_id, auth_header, result, custom, profile):
@@ -221,10 +221,9 @@ def close(snow_url, sys_id, auth_header, result, custom, profile):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    path = resolve_endpoint(custom, "update", sys_id=sys_id, profile=profile)
+    method, path = resolve_endpoint(custom, "close", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": "Closed", "close_code": close_code, "close_notes": close_notes}
-    method = "PUT" if custom else "PATCH"
     return send_request(url, method, auth_header, payload=fields)
 
 def get_by_sys_id(snow_url, sys_id, auth_header, custom, profile):
@@ -239,9 +238,9 @@ def get_by_sys_id(snow_url, sys_id, auth_header, custom, profile):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "change_get", sys_id=sys_id, profile=profile)
+    method, path = resolve_endpoint(custom, "get_by_sys_id", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
-    return send_request(url, "GET", auth_header)
+    return send_request(url, method, auth_header)
 
 def get_by_number(snow_url, number, auth_header, custom):
     """
@@ -257,11 +256,11 @@ def get_by_number(snow_url, number, auth_header, custom):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "change_list")
+    method, path = resolve_endpoint(custom, "get_by_number")
     base_url = f"{snow_url}{path}"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", auth_header)
+    return send_request(url, method, auth_header)
 
 def get_template_id(snow_url, auth_header, name, custom, profile):
     """
@@ -277,11 +276,11 @@ def get_template_id(snow_url, auth_header, name, custom, profile):
 
     Returns (status, data).
     """
-    path = resolve_endpoint(custom, "template", profile=profile)
+    method, path = resolve_endpoint(custom, "get_template_id", profile=profile)
     base_url = f"{snow_url}{path}"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(url, "GET", auth_header)
+    return send_request(url, method, auth_header)
 
 def post_comment(snow_url, sys_id, auth_header, comment, custom, profile):
     """
@@ -295,11 +294,9 @@ def post_comment(snow_url, sys_id, auth_header, comment, custom, profile):
 
     Returns (status, data).
     """
-    endpoint_key = "update" if custom else "table_change_request"
-    path = resolve_endpoint(custom, endpoint_key, sys_id=sys_id, profile=profile)
+    method, path = resolve_endpoint(custom, "post_comment", sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     payload = {"comments": comment} # work notes
-    method = "PUT" if custom else "PATCH"
     return send_request(url, method, auth_header, payload=payload)
 
 def main():
