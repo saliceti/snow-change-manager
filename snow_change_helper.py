@@ -165,19 +165,19 @@ def build_change_html() -> None:
     commits_html = os.environ["COMMITS_HTML"]
 
     html = f"""<h2>Properties</h2>
-    <table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">
-      <thead><tr><th>Property</th><th>Value</th></tr></thead>
-      <tbody>
-        <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
-        <tr><td>Commit SHA</td><td><code>{sha}</code></td></tr>
-        <tr><td>Workflow run</td><td><a href=\"{workflow_run_link}\">Open workflow run</a></td></tr>
-        <tr><td>Triggered by</td><td>{actor}</td></tr>
-        <tr><td>Pull request</td><td><a href=\"{pr_link}\">#{pr_number}</a></td></tr>
-        <tr><td>Jira ticket</td><td><a href=\"{jira_link}\">{jira_ref}</a></td></tr>
-      </tbody>
-    </table>
-    <h3>Commits</h3>
-    {commits_html}"""
+<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">
+  <thead><tr><th>Property</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
+    <tr><td>Commit SHA</td><td><code>{sha}</code></td></tr>
+    <tr><td>Workflow run</td><td><a href=\"{workflow_run_link}\">Open workflow run</a></td></tr>
+    <tr><td>Triggered by</td><td>{actor}</td></tr>
+    <tr><td>Pull request</td><td><a href=\"{pr_link}\">#{pr_number}</a></td></tr>
+    <tr><td>Jira ticket</td><td><a href=\"{jira_link}\">{jira_ref}</a></td></tr>
+  </tbody>
+</table>
+<h3>Commits</h3>
+{commits_html}"""
 
     write_multiline_output("CHANGE_HTML", html)
     write_output("SHORT_DESCRIPTION", short_description)
@@ -191,14 +191,14 @@ def add_create_change_summary() -> None:
     short_description = os.environ["SHORT_DESCRIPTION"]
 
     header = f"""<h2>ServiceNow Change</h2>
-    <table>
-      <thead><tr><th>Property</th><th>Value</th></tr></thead>
-      <tbody>
-        <tr><td>Change number</td><td><a href=\"{change_link}\">{change_number}</a></td></tr>
-        <tr><td>Short description</td><td>{short_description}</td></tr>
-        <tr><td>Sys ID</td><td><code>{change_sys_id}</code></td></tr>
-      </tbody>
-    </table>"""
+<table>
+  <thead><tr><th>Property</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Change number</td><td><a href=\"{change_link}\">{change_number}</a></td></tr>
+    <tr><td>Short description</td><td>{short_description}</td></tr>
+    <tr><td>Sys ID</td><td><code>{change_sys_id}</code></td></tr>
+  </tbody>
+</table>"""
 
     write_summary(header + "\n" + change_html + "\n")
 
