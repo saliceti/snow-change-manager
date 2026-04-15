@@ -9,22 +9,6 @@ import sys
 import argparse
 from datetime import datetime,timedelta
 
-CLI_HELP = """Required command line arguments:
-    --snow-host      ServiceNow instance host only (for example: example.service-now.com)
-
-Authentication modes:
-        --auth password requires:
-            --snow-user      ServiceNow username used for API authentication
-            --snow-password  ServiceNow password used for API authentication
-
-        --auth oauth requires:
-            --client-id       OAuth client ID
-            --client-secret   OAuth client secret
-
-Optional endpoint mode:
-        --custom            Use custom endpoint mappings for non-standard ServiceNow instances
-    --profile           Profile ID (required with --custom)
-"""
 
 DEFAULT_ROUTES = {
     "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
@@ -302,7 +286,6 @@ def post_comment(snow_url, sys_id, auth_header, comment, custom, profile):
 def main():
     parser = argparse.ArgumentParser(
         description="Create or update ServiceNow standard changes",
-        epilog=CLI_HELP,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--auth", choices=["password", "oauth"], required=True,
