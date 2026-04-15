@@ -197,10 +197,9 @@ def main() -> None:
     subparsers.add_parser("extract-pr-jira")
     subparsers.add_parser("build-change-html")
     subparsers.add_parser("add-create-change-summary")
-    snow_command_parser = subparsers.add_parser("snow-command")
-    snow_command_parser.add_argument("snow_args", nargs=argparse.REMAINDER)
+    subparsers.add_parser("snow-command")
 
-    args = parser.parse_args()
+    args, extra = parser.parse_known_args()
 
     if args.command == "list-commits":
         list_commits()
@@ -211,7 +210,7 @@ def main() -> None:
     elif args.command == "add-create-change-summary":
         add_create_change_summary()
     elif args.command == "snow-command":
-        snow_command(args.snow_args)
+        snow_command(extra)
 
 
 if __name__ == "__main__":
