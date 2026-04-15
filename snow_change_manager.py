@@ -315,6 +315,7 @@ def main():
     parser.add_argument("--custom", action="store_true", help="use custom API endpoint mappings")
     parser.add_argument("--profile", help="profile ID (required with --custom)")
     parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
+    parser.add_argument("--verbose", action="store_true", help="print progress messages")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # create subcommand
@@ -365,12 +366,12 @@ def main():
 
         match args.command:
             case "create":
-                if not args.json: print(f"Creating change from template {args.standard_change}...")
+                if args.verbose: print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
                                       auth_header, short_description=args.short_description, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "update":
-                if not args.json: print(f"Updating change {args.sys_id} with state {args.state}...")
+                if args.verbose: print(f"Updating change {args.sys_id} with state {args.state}...")
                 if args.state == "Closed":
                     if not args.result:
                         parser.error("--result is required when --state Closed")
@@ -379,20 +380,20 @@ def main():
                     status, data = update(snow_url, args.sys_id, auth_header, state=args.state, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "close":
-                if not args.json: print(f"Closing change {args.sys_id} with result {args.result}...")
+                if args.verbose: print(f"Closing change {args.sys_id} with result {args.result}...")
                 status, data = close(snow_url, args.sys_id, auth_header, result=args.result, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "get":
                 if args.sys_id:
-                    if not args.json: print(f"Retrieving change with sys_id {args.sys_id}...")
+                    if args.verbose: print(f"Retrieving change with sys_id {args.sys_id}...")
                     status, data = get_by_sys_id(snow_url, args.sys_id, auth_header, custom=args.custom, profile=args.profile)
                     result_type = "single_change"
                 else:
-                    if not args.json: print(f"Retrieving change with number {args.number}...")
+                    if args.verbose: print(f"Retrieving change with number {args.number}...")
                     status, data = get_by_number(snow_url, args.number, auth_header, custom=args.custom)
                     result_type = "change_list"
             case "get-template-id":
-                print(f"Retrieving template \"{args.name}\"...")
+                if args.verbose: print(f"Retrieving template \"{args.name}\"...")
                 status, data = get_template_id(
                     snow_url,
                     auth_header,
@@ -402,7 +403,7 @@ def main():
                 )
                 result_type = "template_list"
             case "post-comment":
-                print(f"Posting comment...")
+                if args.verbose: print(f"Posting comment...")
                 status, data = post_comment(snow_url, args.sys_id, auth_header, comment=args.comment, custom=args.custom, profile=args.profile)
                 result_type = "table_item"
             case _:
@@ -412,12 +413,11 @@ def main():
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
         else:
-            if not args.json: print("The request was successful")
+            if args.verbose: print("The request was successful")
 
         if args.json:
             print(json.dumps(data, indent=2))
         else:
-            print(data)
             match result_type:
                 case "single_change":
                     change_number = extract_api_value(data["result"].get("number"))

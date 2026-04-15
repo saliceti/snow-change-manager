@@ -120,7 +120,6 @@ jobs:
             --short-description "$SHORT_DESCRIPTION" \
             --standard-change "$SNOW_STANDARD_CHANGE" | tee create_output.env
 
-          # shellcheck source=/dev/null
           source create_output.env
 
           ./snow_change_helper.py snow-command post-comment \
