@@ -83,112 +83,24 @@ jobs:
 
       - name: List commits
         id: commit-list
-        shell: python -u {0}
-        run: |
-          import json, os, sys
-
-          commit_list = json.loads(os.environ["COMMITS_CONTEXT"])
-          if not commit_list:
-            sys.exit(0)
-
-          rows = ""
-          for c in commit_list:
-            cid = c['id']
-            author = c['author']['username']
-            message = c['message'].strip().replace('\n', ' ')
-            rows += f"<tr><td><code>{cid}</code></td><td>{author}</td><td>{message}</td></tr>\n"
-
-          html = (
-            "<table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse;'>"
-            "<thead><tr><th>Commit</th><th>Author</th><th>Message</th></tr></thead>"
-            f"<tbody>{rows}</tbody>"
-            "</table>"
-          )
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            print('COMMITS_HTML<<EOF', file=f)
-            print(html, file=f)
-            print('EOF', file=f)
+        run: ./snow_change_helper.py list-commits
         env:
           COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
       - name: Extract PR and Jira info
         if: github.event_name == 'push'
         id: extract-pr-jira
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const message = context.payload.head_commit?.message ?? '';
-
-            const prNumber = message.match(/#(\d+)/)?.[1] ?? '';
-            const jiraReference = message.match(/\[([A-Z][A-Z0-9]+-\d+)\]/)?.[1] ?? '';
-
-            let jiraLink = '';
-
-            if (prNumber) {
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: Number(prNumber),
-              });
-
-              const body = pr.body ?? '';
-              jiraLink =
-                body.match(/https:\/\/nhsd-jira\.digital\.nhs\.uk\/browse\/[A-Z][A-Z0-9]+-\d+/)?.[0] ?? '';
-            }
-
-            if (jiraLink == '' && jiraReference != '') {
-              core.info(`Jira link not found. Using Jira reference ${jiraReference} from PR title.`)
-              jiraLink = `https://nhsd-jira.digital.nhs.uk/browse/${jiraReference}`
-            }
-
-            core.setOutput('pull_request_number', prNumber)
-            core.setOutput('pull_request_link', `${context.payload.repository.html_url}/pull/${prNumber}`)
-            core.setOutput('jira_reference', jiraReference)
-            core.setOutput('jira_link', jiraLink)
-
-            core.info(`pull_request_number=${prNumber}`)
-            core.info(`pull_request_link=${context.payload.repository.html_url}/pull/${prNumber}`)
-            core.info(`jira_reference=${jiraReference}`)
-            core.info(`jira_link=${jiraLink}`)
+        run: ./snow_change_helper.py extract-pr-jira
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REPO_HTML_URL: ${{ github.event.repository.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build change HTML
         id: build-change-html
-        shell: python -u {0}
-        run: |
-          import os
-
-          release_version = os.environ['RELEASE_VERSION']
-          short_description = f"Release Manage breast screening version {release_version}"
-          workflow_run_link = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          pr_number    = os.environ['PR_NUMBER']
-          pr_link      = os.environ['PR_LINK']
-          jira_ref     = os.environ['JIRA_REFERENCE']
-          jira_link    = os.environ['JIRA_LINK']
-          sha          = "${{ github.sha }}"
-          actor        = "${{ github.actor }}"
-          commits_html = os.environ['COMMITS_HTML']
-
-          html = f"""<h2>Properties</h2>
-          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
-            <thead><tr><th>Property</th><th>Value</th></tr></thead>
-            <tbody>
-              <tr><td>Release version</td><td><code>{release_version}</code></td></tr>
-              <tr><td>Commit SHA</td><td><code>{sha}</code></td></tr>
-              <tr><td>Workflow run</td><td><a href="{workflow_run_link}">Open workflow run</a></td></tr>
-              <tr><td>Triggered by</td><td>{actor}</td></tr>
-              <tr><td>Pull request</td><td><a href="{pr_link}">#{pr_number}</a></td></tr>
-              <tr><td>Jira ticket</td><td><a href="{jira_link}">{jira_ref}</a></td></tr>
-            </tbody>
-          </table>
-          <h3>Commits</h3>
-          {commits_html}"""
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            print('CHANGE_HTML<<EOF', file=f)
-            print(html, file=f)
-            print('EOF', file=f)
-            print(f'SHORT_DESCRIPTION={short_description}', file=f)
+        run: ./snow_change_helper.py build-change-html
         env:
           RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
           PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
@@ -196,99 +108,41 @@ jobs:
           JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
           JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
           COMMITS_HTML: ${{ steps.commit-list.outputs.COMMITS_HTML }}
+          WORKFLOW_RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_ACTOR: ${{ github.actor }}
 
       - name: Create and schedule change
         id: create-change
-        shell: python -u {0}
+        shell: bash -eu {0}
         run: |
-          import os
-          import subprocess
+          create_output=$(./snow_change_helper.py snow-command create \
+            --short-description "$SHORT_DESCRIPTION" \
+            --standard-change "$SNOW_STANDARD_CHANGE")
 
-          short_description = os.environ['SHORT_DESCRIPTION']
-          change_html       = os.environ['CHANGE_HTML']
+          echo "$create_output"
 
-          snow_auth = os.environ['SNOW_AUTH']
-          snow_args = [
-            './snow_change_manager.py',
-            '--auth', snow_auth,
-            '--snow-host', os.environ['SNOW_HOST'],
-          ]
+          CHANGE_SYS_ID=$(echo "$create_output" | awk -F= '/^CHANGE_SYS_ID=/{print $2}' | tail -n 1)
+          CHANGE_NUMBER=$(echo "$create_output" | awk -F= '/^CHANGE_NUMBER=/{print $2}' | tail -n 1)
+          CHANGE_LINK=$(echo "$create_output" | awk -F= '/^CHANGE_LINK=/{print $2}' | tail -n 1)
 
-          if snow_auth == 'password':
-            snow_args.extend([
-              '--snow-user', os.environ['SNOW_USER'],
-              '--snow-password', os.environ['SNOW_PASSWORD'],
-            ])
-          elif snow_auth == 'oauth':
-            snow_args.extend([
-              '--client-id', os.environ['SNOW_CLIENT_ID'],
-              '--client-secret', os.environ['SNOW_CLIENT_SECRET'],
-            ])
-          else:
-            raise RuntimeError(f'Unsupported SNOW_AUTH value: {snow_auth}')
+          ./snow_change_helper.py snow-command post-comment \
+            --sys-id "$CHANGE_SYS_ID" \
+            --comment "[code]$CHANGE_HTML[/code]"
 
-          result = subprocess.run(
-            snow_args + [
-              'create',
-              "--short-description", short_description,
-              "--standard-change", os.environ['SNOW_STANDARD_CHANGE'],
-            ],
-            capture_output=True, text=True, check=True
-          )
+          echo "Change created successfully and scheduled immediately"
 
-          snow_vars = {}
-          for line in result.stdout.splitlines():
-            if '=' in line:
-              k, v = line.split('=', 1)
-              snow_vars[k.strip()] = v.strip()
-
-          change_sys_id = snow_vars.get('CHANGE_SYS_ID', '')
-          change_number = snow_vars.get('CHANGE_NUMBER', '')
-          change_link   = snow_vars.get('CHANGE_LINK', '')
-
-          print("Change created successfully and scheduled immediately")
-
-          subprocess.run(
-            snow_args + [
-              'post-comment',
-              "--sys-id", change_sys_id,
-              "--comment", f"[code]{change_html}[/code]",
-            ],
-            check=True
-          )
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            f.write(f"CHANGE_SYS_ID={change_sys_id}\n")
-            f.write(f"CHANGE_NUMBER={change_number}\n")
-            f.write(f"CHANGE_LINK={change_link}\n")
+          {
+            echo "CHANGE_SYS_ID=$CHANGE_SYS_ID"
+            echo "CHANGE_NUMBER=$CHANGE_NUMBER"
+            echo "CHANGE_LINK=$CHANGE_LINK"
+          } >> "$GITHUB_OUTPUT"
         env:
           SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
           CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
 
       - name: Add create change summary
-        shell: python -u {0}
-        run: |
-          import os
-
-          change_number     = os.environ['CHANGE_NUMBER']
-          change_link       = os.environ['CHANGE_LINK']
-          change_sys_id     = os.environ['CHANGE_SYS_ID']
-          change_html       = os.environ['CHANGE_HTML']
-          short_description = os.environ['SHORT_DESCRIPTION']
-
-          header = f"""<h2>ServiceNow Change</h2>
-          <table>
-            <thead><tr><th>Property</th><th>Value</th></tr></thead>
-            <tbody>
-              <tr><td>Change number</td><td><a href="{change_link}">{change_number}</a></td></tr>
-              <tr><td>Short description</td><td>{short_description}</td></tr>
-              <tr><td>Sys ID</td><td><code>{change_sys_id}</code></td></tr>
-            </tbody>
-          </table>"""
-
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
-            f.write(header + "\n")
-            f.write(change_html + "\n")
+        run: ./snow_change_helper.py add-create-change-summary
         env:
           CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
           CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
@@ -310,14 +164,7 @@ jobs:
 
       - name: Start change
         run: |
-          if [[ "$SNOW_AUTH" == "password" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Implement
-          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Implement
-          else
-            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
-            exit 1
-          fi
+          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Implement
 
           echo Change started successfully. Ready for deployment.
         env:
@@ -349,14 +196,7 @@ jobs:
       - name: Review change
         if: always()
         run: |
-          if [[ "$SNOW_AUTH" == "password" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Review
-          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Review
-          else
-            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
-            exit 1
-          fi
+          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Review
 
           if [[ "${{ job.status }}" != "success" ]]; then
             message="The deployment was unsuccessul"
@@ -366,18 +206,9 @@ jobs:
 
           echo "$message"
 
-          if [[ "$SNOW_AUTH" == "password" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
-            Deployment log:
-            ${{ steps.deploy-software.outputs.LOG}}"
-          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
-            Deployment log:
-            ${{ steps.deploy-software.outputs.LOG}}"
-          else
-            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
-            exit 1
-          fi
+          ./snow_change_helper.py snow-command post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+          Deployment log:
+          ${{ steps.deploy-software.outputs.LOG}}"
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
@@ -415,18 +246,9 @@ jobs:
 
           echo "$message"
 
-          if [[ "$SNOW_AUTH" == "password" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
-            Smoke test log:
-            ${{ steps.smoke-test.outputs.LOG}}"
-          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
-            Smoke test log:
-            ${{ steps.smoke-test.outputs.LOG}}"
-          else
-            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
-            exit 1
-          fi
+          ./snow_change_helper.py snow-command post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+          Smoke test log:
+          ${{ steps.smoke-test.outputs.LOG}}"
         env:
           CHANGE_SYS_ID: ${{ needs.create-snow-change.outputs.CHANGE_SYS_ID }}
 
@@ -448,14 +270,7 @@ jobs:
             result=unsuccessful
           fi
 
-          if [[ "$SNOW_AUTH" == "password" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --snow-user "$SNOW_USER" --snow-password "$SNOW_PASSWORD" update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
-          elif [[ "$SNOW_AUTH" == "oauth" ]]; then
-            ./snow_change_manager.py --auth "$SNOW_AUTH" --snow-host "$SNOW_HOST" --client-id "$SNOW_CLIENT_ID" --client-secret "$SNOW_CLIENT_SECRET" update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
-          else
-            echo "Unsupported SNOW_AUTH value: $SNOW_AUTH"
-            exit 1
-          fi
+          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
 
           echo Change closed with result: $result
         env:
