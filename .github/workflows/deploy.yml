@@ -116,15 +116,12 @@ jobs:
         id: create-change
         shell: bash -eu {0}
         run: |
-          create_output=$(./snow_change_helper.py snow-command create \
+          ./snow_change_helper.py snow-command create \
             --short-description "$SHORT_DESCRIPTION" \
-            --standard-change "$SNOW_STANDARD_CHANGE")
+            --standard-change "$SNOW_STANDARD_CHANGE" | tee create_output.env
 
-          echo "$create_output"
-
-          CHANGE_SYS_ID=$(echo "$create_output" | awk -F= '/^CHANGE_SYS_ID=/{print $2}' | tail -n 1)
-          CHANGE_NUMBER=$(echo "$create_output" | awk -F= '/^CHANGE_NUMBER=/{print $2}' | tail -n 1)
-          CHANGE_LINK=$(echo "$create_output" | awk -F= '/^CHANGE_LINK=/{print $2}' | tail -n 1)
+          # shellcheck source=/dev/null
+          source create_output.env
 
           ./snow_change_helper.py snow-command post-comment \
             --sys-id "$CHANGE_SYS_ID" \
