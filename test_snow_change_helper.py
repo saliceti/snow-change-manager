@@ -92,6 +92,32 @@ class TestSnowChangeHelper(unittest.TestCase):
             "SHORT_DESCRIPTION=Release Manage breast screening version v1.2.3\n",
         )
 
+    def test_add_create_change_summary_writes_expected_stdout_output(self):
+        env = {
+            "CHANGE_NUMBER": "CHG0030038",
+            "CHANGE_LINK": "https://dev185914.service-now.com/now/nav/ui/classic/params/target/change_request.do?sys_id=2e94290183d88f103847c629feaad33c",
+            "CHANGE_SYS_ID": "2e94290183d88f103847c629feaad33c",
+            "SHORT_DESCRIPTION": "Release Manage breast screening version v1.2.3",
+            "CHANGE_HTML": "<h2>Properties</h2>\n<table><tbody><tr><td>Value</td></tr></tbody></table>",
+        }
+
+        output = self.run_main(["--output-mode", "stdout", "add-create-change-summary"], env)
+
+        self.assertEqual(
+            output,
+            "<h2>ServiceNow Change</h2>\n"
+            "    <table>\n"
+            "      <thead><tr><th>Property</th><th>Value</th></tr></thead>\n"
+            "      <tbody>\n"
+            "        <tr><td>Change number</td><td><a href=\"https://dev185914.service-now.com/now/nav/ui/classic/params/target/change_request.do?sys_id=2e94290183d88f103847c629feaad33c\">CHG0030038</a></td></tr>\n"
+            "        <tr><td>Short description</td><td>Release Manage breast screening version v1.2.3</td></tr>\n"
+            "        <tr><td>Sys ID</td><td><code>2e94290183d88f103847c629feaad33c</code></td></tr>\n"
+            "      </tbody>\n"
+            "    </table>\n"
+            "<h2>Properties</h2>\n"
+            "<table><tbody><tr><td>Value</td></tr></tbody></table>\n",
+        )
+
     @patch("snow_change_helper.urllib.request.urlopen")
     def test_extract_pr_jira_uses_mocked_github_api_and_writes_stdout(self, mock_urlopen):
         mock_urlopen.return_value = _MockHttpResponse(
