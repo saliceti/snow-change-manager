@@ -5,19 +5,44 @@ import json
 import os
 import re
 import subprocess
+import sys
 import urllib.request
 
 
+OUTPUT_MODE = "github"
+
+
+def configure_output_mode(mode: str) -> None:
+    global OUTPUT_MODE
+    OUTPUT_MODE = mode
+
+
 def write_output(name: str, value: str) -> None:
-    with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-        fh.write(f"{name}={value}\n")
+    if OUTPUT_MODE == "stdout":
+        print(f"{name}={value}")
+    else:
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+            fh.write(f"{name}={value}\n")
 
 
 def write_multiline_output(name: str, value: str) -> None:
-    with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-        print(f"{name}<<EOF", file=fh)
-        print(value, file=fh)
-        print("EOF", file=fh)
+    if OUTPUT_MODE == "stdout":
+        print(f"{name}<<EOF")
+        print(value)
+        print("EOF")
+    else:
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+            print(f"{name}<<EOF", file=fh)
+            print(value, file=fh)
+            print("EOF", file=fh)
+
+
+def write_summary(value: str) -> None:
+    if OUTPUT_MODE == "stdout":
+        print(value, end="")
+    else:
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+            fh.write(value)
 
 
 def build_snow_args() -> list[str]:
@@ -120,11 +145,6 @@ def extract_pr_jira() -> None:
     repo_html_url = os.environ["REPO_HTML_URL"]
     pr_link = f"{repo_html_url}/pull/{pr_number}"
 
-    print(f"pull_request_number={pr_number}")
-    print(f"pull_request_link={pr_link}")
-    print(f"jira_reference={jira_reference}")
-    print(f"jira_link={jira_link}")
-
     write_output("pull_request_number", pr_number)
     write_output("pull_request_link", pr_link)
     write_output("jira_reference", jira_reference)
@@ -180,17 +200,21 @@ def add_create_change_summary() -> None:
       </tbody>
     </table>"""
 
-    with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
-        fh.write(header + "\n")
-        fh.write(change_html + "\n")
+    write_summary(header + "\n" + change_html + "\n")
 
 
 def snow_command(command_args: list[str]) -> None:
     run_snow_command(command_args)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Workflow data helpers")
+    parser.add_argument(
+        "--output-mode",
+        choices=["github", "stdout"],
+        default="github",
+        help="where helper outputs are written (default: github)",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("list-commits")
@@ -199,7 +223,8 @@ def main() -> None:
     subparsers.add_parser("add-create-change-summary")
     subparsers.add_parser("snow-command")
 
-    args, extra = parser.parse_known_args()
+    args, extra = parser.parse_known_args(argv)
+    configure_output_mode(args.output_mode)
 
     if args.command == "list-commits":
         list_commits()
@@ -214,4 +239,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
