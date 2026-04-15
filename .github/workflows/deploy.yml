@@ -122,7 +122,7 @@ jobs:
 
           source create_output.env
 
-          ./snow_change_helper.py snow-command post-comment \
+          ./snow_change_helper.py snow-command --verbose post-comment \
             --sys-id "$CHANGE_SYS_ID" \
             --comment "[code]$CHANGE_HTML[/code]"
 
@@ -160,7 +160,7 @@ jobs:
 
       - name: Start change
         run: |
-          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Implement
+          ./snow_change_helper.py snow-command --verbose update --sys-id "$CHANGE_SYS_ID" --state Implement
 
           echo Change started successfully. Ready for deployment.
         env:
@@ -192,7 +192,7 @@ jobs:
       - name: Review change
         if: always()
         run: |
-          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Review
+          ./snow_change_helper.py snow-command --verbose update --sys-id "$CHANGE_SYS_ID" --state Review
 
           if [[ "${{ job.status }}" != "success" ]]; then
             message="The deployment was unsuccessul"
@@ -202,7 +202,7 @@ jobs:
 
           echo "$message"
 
-          ./snow_change_helper.py snow-command post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+          ./snow_change_helper.py snow-command --verbose post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
           Deployment log:
           ${{ steps.deploy-software.outputs.LOG}}"
         env:
@@ -242,7 +242,7 @@ jobs:
 
           echo "$message"
 
-          ./snow_change_helper.py snow-command post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
+          ./snow_change_helper.py snow-command --verbose post-comment --sys-id "$CHANGE_SYS_ID" --comment "$message
           Smoke test log:
           ${{ steps.smoke-test.outputs.LOG}}"
         env:
@@ -266,7 +266,7 @@ jobs:
             result=unsuccessful
           fi
 
-          ./snow_change_helper.py snow-command update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
+          ./snow_change_helper.py snow-command --verbose update --sys-id "$CHANGE_SYS_ID" --state Closed --result "$result"
 
           echo Change closed with result: $result
         env:
