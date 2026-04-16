@@ -18,22 +18,33 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         )
         return result
 
-    def test_help_documents_required_command_line_arguments(self):
+    def test_help_documents_command_line_arguments(self):
         result = self.run_cli(["--help"])
 
         self.assertEqual(result.returncode, 0)
-        self.assertIn("Required command line arguments", result.stdout)
+        self.assertIn("--auth", result.stdout)
         self.assertIn("--snow-host", result.stdout)
         self.assertIn("--snow-user", result.stdout)
         self.assertIn("--snow-password", result.stdout)
+        self.assertIn("--client-id", result.stdout)
+        self.assertIn("--client-secret", result.stdout)
         self.assertIn("--custom", result.stdout)
         self.assertIn("--profile", result.stdout)
+        self.assertIn("--json", result.stdout)
+        self.assertIn("--verbose", result.stdout)
+        self.assertIn("--profile", result.stdout)
 
-    def test_missing_required_arguments_are_reported(self):
+    def test_missing_password_required_arguments_are_reported(self):
         result = self.run_cli(["--auth", "password", "get-template-id", "--name", "Any Template"])
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing required command line argument(s): --snow-host, --snow-user, --snow-password", result.stderr)
+
+    def test_missing_oauth_required_arguments_are_reported(self):
+        result = self.run_cli(["--auth", "oauth", "get-template-id", "--name", "Any Template"])
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Missing required command line argument(s): --snow-host, --client-id, --client-secret", result.stderr)
 
     def test_whitespace_only_argument_is_reported(self):
         result = self.run_cli(
@@ -49,19 +60,19 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing required command line argument(s): --snow-user", result.stderr)
 
-    def test_closed_state_still_requires_result(self):
+    def test_review_state_still_requires_result(self):
         result = self.run_cli(
             [
                 "--auth", "password",
                 "--snow-host", "example.service-now.com",
                 "--snow-user", "user",
                 "--snow-password", "secret",
-                "update", "--sys-id", "abc123", "--state", "Closed"
+                "review", "--number", "CHG0030052"
             ],
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("--result is required when --state Closed", result.stderr)
+        self.assertIn("review: error: the following arguments are required: --result", result.stderr)
 
     def test_custom_mode_requires_profile(self):
         result = self.run_cli(

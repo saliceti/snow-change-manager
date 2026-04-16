@@ -9,6 +9,20 @@ import sys
 import argparse
 from datetime import datetime,timedelta
 
+ARGS_DESCRIPTION = """
+Create or update ServiceNow standard changes
+
+General usage:
+    ./snow_change_manager.py <global arguments> <command> <command arguments>
+Example:
+    ./snow_change_manager.py --auth oauth --client-id abcd123 --client-secret abc234 \\
+        create --standard-change abc345 --short-description "Deploy version 123"
+
+For help with commands:
+    ./snow_change_manager.py <command> --help
+Example:
+    ./snow_change_manager.py create --help
+"""
 
 DEFAULT_ROUTES = {
     "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
@@ -116,7 +130,6 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
     else:
         data = payload  # bytes or None
 
-    # For POST with empty body data should be b"" to enforce POST
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     with urllib.request.urlopen(req) as resp:
         status = resp.getcode()
@@ -167,7 +180,6 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
     params = {
         "short_description": short_description,
         "state": SNOW_STATES["Scheduled"],
-        # "state": "Scheduled",
         "start_date": get_datetime(),
         "end_date": get_datetime(60)
     }
@@ -194,7 +206,15 @@ def update(snow_url, number, auth_header, state, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    method, path = resolve_endpoint(custom, "update", number=number, profile=profile)
+    sys_id = ""
+    if not custom:
+        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
+        if status != 200:
+            print(f"Error: Unexpected status code - {status}")
+            sys.exit(1)
+        sys_id = data["result"][0]["sys_id"]["value"]
+
+    method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES[state]}
     return send_request(url, method, auth_header, payload=fields)
@@ -221,27 +241,20 @@ def review(snow_url, number, auth_header, result, custom, profile):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    method, path = resolve_endpoint(custom, "close", number=number, profile=profile)
+    sys_id = ""
+    if not custom:
+        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
+        if status != 200:
+            print(f"Error: Unexpected status code - {status}")
+            sys.exit(1)
+        sys_id = data["result"][0]["sys_id"]["value"]
+
+
+    method, path = resolve_endpoint(custom, "close", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES["Review"], "close_code": close_code, "close_notes": close_notes}
 
     return send_request(url, method, auth_header, payload=fields)
-
-def get_by_sys_id(snow_url, sys_id, auth_header, custom, profile):
-    """
-    Retrieve an existing change identified by sys_id. Only in Standard API.
-
-    Uses:
-      GET /api/sn_chg_rest/change/{sys_id}
-
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
-
-    Returns (status, data).
-    """
-    method, path = resolve_endpoint(custom, "get_by_sys_id", sys_id=sys_id, profile=profile)
-    url = f"{snow_url}{path}"
-    return send_request(url, method, auth_header)
 
 def get_by_number(snow_url, number, auth_header, custom, profile):
     """
@@ -259,9 +272,12 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
     """
     method, path = resolve_endpoint(custom, "get_by_number", profile=profile, number=number)
     base_url = f"{snow_url}{path}"
-    # query = f"number={urllib.parse.quote(number)}"
-    # url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    return send_request(base_url, method, auth_header)
+    query = f"number={urllib.parse.quote(number)}"
+    url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
+    if custom:
+        return send_request(base_url, method, auth_header)
+    else:
+        return send_request(url, method, auth_header)
 
 def get_template_id(snow_url, auth_header, name, custom, profile):
     """
@@ -296,18 +312,26 @@ def post_comment(snow_url, number, auth_header, comment, custom, profile):
 
     Returns (status, data).
     """
-    method, path = resolve_endpoint(custom, "post_comment", profile=profile, number=number)
+    sys_id = ""
+    if not custom:
+        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
+        if status != 200:
+            print(f"Error: Unexpected status code - {status}")
+            sys.exit(1)
+        sys_id = data["result"][0]["sys_id"]["value"]
+
+    method, path = resolve_endpoint(custom, "post_comment", profile=profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
     payload = {"work_notes": comment}
     return send_request(url, method, auth_header, payload=payload)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create or update ServiceNow standard changes",
+        description=ARGS_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--auth", choices=["password", "oauth"], required=True,
-                        help="authentication mode")
+                        help="authentication mode (required)")
     parser.add_argument("--snow-host", help="ServiceNow instance host (required)")
     parser.add_argument("--snow-user", help="ServiceNow username (required with --auth password)")
     parser.add_argument("--snow-password", help="ServiceNow password (required with --auth password)")
@@ -322,14 +346,14 @@ def main():
     # create subcommand
     sp_create = subparsers.add_parser("create", help="Create a new standard change")
     sp_create.add_argument("--standard-change", required=True, help="standard change sys_id (required)")
-    sp_create.add_argument("--short-description", required=True, help="short description for create")
+    sp_create.add_argument("--short-description", required=True, help="short description for create (required)")
 
     # update subcommand
     sp_update = subparsers.add_parser("update", help="Update an existing change")
-    sp_update.add_argument("--sys-id", help="sys_id of change to update (required for standard SeviceNow API)")
-    sp_update.add_argument("--number", help="number of change to retrieve e.g. CHG0030052 (required for NHS custom API)")
+    # sp_update.add_argument("--sys-id", help="sys_id of change to update (required for standard SeviceNow API)")
+    sp_update.add_argument("--number", required=True, help="number of change to retrieve e.g. CHG0030052 (required)")
     sp_update.add_argument("--state", choices=["Implement"], required=True,
-                           help="state to set when updating (one of Implement)")
+                           help="state to set when updating (required)")
     sp_update.add_argument("--result", choices=["successful", "unsuccessful"],
                            help="result for close (required when state is Closed)")
 
@@ -341,9 +365,7 @@ def main():
 
     # get subcommand: retrieve a change
     sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id (only for standard API) or number")
-    group = sp_get.add_mutually_exclusive_group(required=True)
-    group.add_argument("--sys-id", help="sys_id of change to retrieve")
-    group.add_argument("--number", help="number of change to retrieve (e.g., CHG0030052)")
+    sp_get.add_argument("--number", required=True, help="number of change to retrieve e.g. CHG0030052 (required)")
 
     # get-template-id subcommand: retrieve template ID by name
     sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
@@ -373,13 +395,7 @@ def main():
                                       auth_header, short_description=args.short_description, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "update":
-                # The NHS custom API looks up a change by number
-                if args.custom and not args.number:
-                    parser.error("--number is required when using --custom")
-                # The ServiceNow standard API looks up a change by sys_id
-                if not args.custom and not args.sys_id:
-                    parser.error("--sys-id is required when not using --custom")
-                if args.verbose: print(f"Updating change {args.sys_id} with state {args.state}...")
+                if args.verbose: print(f"Updating change {args.number} with state {args.state}...")
                 status, data = update(snow_url, args.number, auth_header, state=args.state, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "review":
@@ -387,21 +403,12 @@ def main():
                 status, data = review(snow_url, args.number, auth_header, result=args.result, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "get":
-                if args.custom and not args.number:
-                    parser.error("--number is required when using --custom")
-                if args.custom and args.sys_id:
-                    parser.error("--sys-id cannot be used when using --custom, use --number only")
-                if args.sys_id:
-                    if args.verbose: print(f"Retrieving change with sys_id {args.sys_id}...")
-                    status, data = get_by_sys_id(snow_url, args.sys_id, auth_header, custom=args.custom, profile=args.profile)
+                if args.verbose: print(f"Retrieving change with number {args.number}...")
+                status, data = get_by_number(snow_url, args.number, auth_header, profile=args.profile, custom=args.custom)
+                if args.custom:
                     result_type = "single_change"
                 else:
-                    if args.verbose: print(f"Retrieving change with number {args.number}...")
-                    status, data = get_by_number(snow_url, args.number, auth_header, profile=args.profile, custom=args.custom)
-                    if args.custom:
-                        result_type = "single_change"
-                    else:
-                        result_type = "change_list"
+                    result_type = "change_list"
             case "get-template-id":
                 if args.verbose: print(f"Retrieving template \"{args.name}\"...")
                 status, data = get_template_id(
@@ -416,6 +423,7 @@ def main():
                 if args.verbose: print(f"Posting comment...")
                 status, data = post_comment(snow_url, args.number, auth_header, comment=args.comment, custom=args.custom, profile=args.profile)
                 result_type = "table_item"
+                print(data)
             case _:
                 parser.error("unknown command")
 
@@ -465,6 +473,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# TEST123
