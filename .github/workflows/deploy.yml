@@ -160,7 +160,7 @@ jobs:
 
       - name: Start change
         run: |
-          ./snow_change_helper.py snow-command --verbose update --number "$CHANGE_NUMBER" --state Implement
+          ./snow_change_helper.py snow-command --verbose implement --number "$CHANGE_NUMBER"
 
           echo Change started successfully. Ready for deployment.
         env:
