@@ -101,9 +101,8 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         self.assertIsNotNone(change_number, "change_number not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
-            "update",
-            "--number", change_number,
-            "--state", "Implement"
+            "implement",
+            "--number", change_number
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")

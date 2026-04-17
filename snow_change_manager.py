@@ -202,7 +202,7 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
         # Send data in the request query string
         return send_request(url, method, auth_header)
 
-def update(snow_url, number, auth_header, state, custom, profile):
+def implement(snow_url, number, auth_header, custom, profile):
     """
     Update an existing change identified by sys_id via a PATCH request.
 
@@ -219,7 +219,7 @@ def update(snow_url, number, auth_header, state, custom, profile):
     sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
     method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
-    fields = {"state": SNOW_STATES[state]}
+    fields = {"state": SNOW_STATES["Implement"]}
     return send_request(url, method, auth_header, payload=fields)
 
 def review(snow_url, number, auth_header, result, custom, profile):
@@ -337,24 +337,19 @@ def main():
     sp_create.add_argument("--standard-change", required=True, help="standard change sys_id (required)")
     sp_create.add_argument("--short-description", required=True, help="short description for create (required)")
 
-    # update subcommand
-    sp_update = subparsers.add_parser("update", help="Update an existing change")
-    # sp_update.add_argument("--sys-id", help="sys_id of change to update (required for standard SeviceNow API)")
-    sp_update.add_argument("--number", required=True, help="number of change to retrieve e.g. CHG0030052 (required)")
-    sp_update.add_argument("--state", choices=["Implement"], required=True,
-                           help="state to set when updating (required)")
-    sp_update.add_argument("--result", choices=["successful", "unsuccessful"],
-                           help="result for close (required when state is Closed)")
+    # implement subcommand
+    sp_implement = subparsers.add_parser("implement", help="Update change state to Implement")
+    sp_implement.add_argument("--number", required=True, help="Change number e.g. CHG0030052 (required)")
 
     # review subcommand
-    sp_review = subparsers.add_parser("review", help="Progress an existing change to Review")
-    sp_review.add_argument("--number", required=True, help="Number of change to review e.g CHG0030052 (required)")
+    sp_review = subparsers.add_parser("review", help="Update change state to Review")
+    sp_review.add_argument("--number", required=True, help="Change number e.g CHG0030052 (required)")
     sp_review.add_argument("--result", choices=["successful", "unsuccessful"], required=True,
                           help="result for close (required)")
 
     # get subcommand: retrieve a change
     sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id (only for standard API) or number")
-    sp_get.add_argument("--number", required=True, help="number of change to retrieve e.g. CHG0030052 (required)")
+    sp_get.add_argument("--number", required=True, help="Change number e.g. CHG0030052 (required)")
 
     # get-template-id subcommand: retrieve template ID by name
     sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
@@ -362,7 +357,7 @@ def main():
 
     # post-comment subcommand: post a comment to a change
     sp_post_comment = subparsers.add_parser("post-comment", help="Post a comment to a change request")
-    sp_post_comment.add_argument("--number", required=True, help="Number of change to comment on e.g CHG0030052 (required)")
+    sp_post_comment.add_argument("--number", required=True, help="Change number on e.g CHG0030052 (required)")
     sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
 
     args = parser.parse_args()
@@ -383,12 +378,12 @@ def main():
                 status, data = create(snow_url, args.standard_change,
                                       auth_header, short_description=args.short_description, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
-            case "update":
-                if args.verbose: print(f"Updating change {args.number} with state {args.state}...")
-                status, data = update(snow_url, args.number, auth_header, state=args.state, custom=args.custom, profile=args.profile)
+            case "implement":
+                if args.verbose: print(f"Updating change {args.number} state to Implement...")
+                status, data = implement(snow_url, args.number, auth_header, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "review":
-                if args.verbose: print(f"Progressing change {args.number} to Review with result {args.result}...")
+                if args.verbose: print(f"Updating change {args.number} state to Review with result {args.result}...")
                 status, data = review(snow_url, args.number, auth_header, result=args.result, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "get":
