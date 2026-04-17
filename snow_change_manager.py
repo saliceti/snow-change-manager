@@ -396,39 +396,6 @@ def main():
             case _:
                 parser.error("unknown command")
 
-        if status != 200:
-            print(f"Error: Unexpected status code - {status}")
-            sys.exit(1)
-
-        if args.verbose: print("The request was successful")
-
-        if args.json:
-            print(json.dumps(data, indent=2))
-        else:
-            match result_type:
-                case "single_change":
-                    change_number = data["result"]["number"] if args.custom else data["result"]["number"]["value"]
-                    change_sys_id = data["result"]["sys_id"] if args.custom else data["result"]["sys_id"]["value"]
-                    change_state = data["result"]["state"] if args.custom else data["result"]["state"]["display_value"]
-                    print("CHANGE_NUMBER=" + change_number)
-                    print("CHANGE_SYS_ID=" + change_sys_id)
-                    print("CHANGE_STATE=" + change_state)
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
-                case "change_list":
-                    print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
-                    print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
-                    print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
-                case "template_list":
-                    template_id = data["result"][0].get("sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
-                    print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
-                    print("TEMPLATE_NAME=\"" + args.name + "\"")
-                    print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
-                case "table_item":
-                    print("CHANGE_NUMBER=" + data["result"]["number"])
-                    print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
-                    print("CHANGE_STATE=" + data["result"]["state"])
-                    print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']}")
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
@@ -439,6 +406,40 @@ def main():
     except ValueError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
+
+    if status != 200:
+        print(f"Error: Unexpected status code - {status}")
+        sys.exit(1)
+
+    if args.verbose: print("The request was successful")
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+    else:
+        match result_type:
+            case "single_change":
+                change_number = data["result"]["number"] if args.custom else data["result"]["number"]["value"]
+                change_sys_id = data["result"]["sys_id"] if args.custom else data["result"]["sys_id"]["value"]
+                change_state = data["result"]["state"] if args.custom else data["result"]["state"]["display_value"]
+                print("CHANGE_NUMBER=" + change_number)
+                print("CHANGE_SYS_ID=" + change_sys_id)
+                print("CHANGE_STATE=" + change_state)
+                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
+            case "change_list":
+                print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
+                print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
+                print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
+                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
+            case "template_list":
+                template_id = data["result"][0].get("sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
+                print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+                print("TEMPLATE_NAME=\"" + args.name + "\"")
+                print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
+            case "table_item":
+                print("CHANGE_NUMBER=" + data["result"]["number"])
+                print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
+                print("CHANGE_STATE=" + data["result"]["state"])
+                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']}")
 
 if __name__ == "__main__":
     main()
