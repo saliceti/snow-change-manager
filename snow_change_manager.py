@@ -143,17 +143,6 @@ def get_datetime(minutes=0):
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
-
-def extract_api_value(field, preferred_key="value"):
-    if isinstance(field, dict):
-        if preferred_key in field:
-            return field.get(preferred_key)
-        if "value" in field:
-            return field.get("value")
-        if "display_value" in field:
-            return field.get("display_value")
-    return field
-
 def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
     sys_id = ""
     if not custom:
@@ -410,20 +399,20 @@ def main():
         if status != 200:
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
-        else:
-            if args.verbose: print("The request was successful")
+
+        if args.verbose: print("The request was successful")
 
         if args.json:
             print(json.dumps(data, indent=2))
         else:
             match result_type:
                 case "single_change":
-                    change_number = extract_api_value(data["result"].get("number"))
-                    change_sys_id = extract_api_value(data["result"].get("sys_id"))
-                    change_state = extract_api_value(data["result"].get("state"), preferred_key="display_value")
-                    print("CHANGE_NUMBER=" + str(change_number))
-                    print("CHANGE_SYS_ID=" + str(change_sys_id))
-                    print("CHANGE_STATE=" + str(change_state))
+                    change_number = data["result"]["number"] if args.custom else data["result"]["number"]["value"]
+                    change_sys_id = data["result"]["sys_id"] if args.custom else data["result"]["sys_id"]["value"]
+                    change_state = data["result"]["state"] if args.custom else data["result"]["state"]["display_value"]
+                    print("CHANGE_NUMBER=" + change_number)
+                    print("CHANGE_SYS_ID=" + change_sys_id)
+                    print("CHANGE_STATE=" + change_state)
                     print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
                 case "change_list":
                     print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
@@ -431,8 +420,8 @@ def main():
                     print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
                     print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
                 case "template_list":
-                    template_id = extract_api_value(data["result"][0].get("sys_id"))
-                    print("TEMPLATE_ID=" + str(template_id))
+                    template_id = data["result"][0].get("sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
+                    print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
                     print("TEMPLATE_NAME=\"" + args.name + "\"")
                     print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
                 case "table_item":
