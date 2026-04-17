@@ -26,22 +26,18 @@ Example:
 
 DEFAULT_ROUTES = {
     "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
-    "update": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
-    "close": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
-    "get_by_sys_id": {"method": "GET", "path": "/api/sn_chg_rest/change/{sys_id}"},
     "get_by_number": {"method": "GET", "path": "/api/sn_chg_rest/change"},
     "get_template_id": {"method": "GET", "path": "/api/sn_chg_rest/v1/change/standard/template"},
     "post_comment": {"method": "PATCH", "path": "/api/now/table/change_request/{sys_id}"},
+    "update": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
 }
 
 CUSTOM_ROUTES = {
     "create": { "method": "POST", "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"},
-    "update": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
-    "close": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
-    "get_by_sys_id": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{sys_id}"},
+    "get_by_number": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{number}"},
     "get_template_id": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
     "post_comment": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
-    "get_by_number": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{number}"}
+    "update": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
 }
 
 # See https://www.servicenow.com/docs/r/it-service-management/change-management/c_ChangeStateModel.html
@@ -245,7 +241,7 @@ def review(snow_url, number, auth_header, result, custom, profile):
         close_notes = "Change did not complete successfully"
 
     sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
-    method, path = resolve_endpoint(custom, "close", number=number, sys_id=sys_id, profile=profile)
+    method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES["Review"], "close_code": close_code, "close_notes": close_notes}
 
