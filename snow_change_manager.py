@@ -7,7 +7,7 @@ import urllib.request
 import urllib.error
 import sys
 import argparse
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 ARGS_DESCRIPTION = """
 Create or update ServiceNow standard changes
@@ -25,22 +25,43 @@ Example:
 """
 
 DEFAULT_ROUTES = {
-    "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
-    "get_by_number": {"method": "GET", "path": "/api/sn_chg_rest/change"},
-    "get_template_id": {"method": "GET", "path": "/api/sn_chg_rest/change/standard/template"},
-    "post_comment": {"method": "PATCH", "path": "/api/now/table/change_request/{sys_id}"},
-    "update": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
+    "create": {
+        "method": "POST",
+        "path": "/api/sn_chg_rest/change/standard/{template_id}"},
+    "get_by_number": {
+        "method": "GET",
+        "path": "/api/sn_chg_rest/change"},
+    "get_template_id": {
+        "method": "GET",
+        "path": "/api/sn_chg_rest/change/standard/template"},
+    "post_comment": {
+        "method": "PATCH",
+        "path": "/api/now/table/change_request/{sys_id}"},
+    "update": {
+        "method": "PATCH",
+        "path": "/api/sn_chg_rest/change/{sys_id}"},
 }
 
 CUSTOM_ROUTES = {
-    "create": { "method": "POST", "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"},
-    "get_by_number": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{number}"},
-    "get_template_id": { "method": "GET", "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
-    "post_comment": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
-    "update": { "method": "PUT", "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
+    "create": {
+        "method": "POST",
+        "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"},
+    "get_by_number": {
+        "method": "GET",
+        "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{number}"},
+    "get_template_id": {
+        "method": "GET",
+        "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
+    "post_comment": {
+        "method": "PUT",
+        "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
+    "update": {
+        "method": "PUT",
+        "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
 }
 
-# See https://www.servicenow.com/docs/r/it-service-management/change-management/c_ChangeStateModel.html
+# See
+# https://www.servicenow.com/docs/r/it-service-management/change-management/c_ChangeStateModel.html
 SNOW_STATES = {
     "New": -5,
     "Scheduled": -2,
@@ -60,6 +81,7 @@ def resolve_endpoint(custom, function_name, **params):
     route = routes[function_name]
     return route["method"], route["path"].format(**params)
 
+
 def get_basic_auth_header(user, password):
     """
     Create the Authentication header value for HTTP basic auth
@@ -68,6 +90,7 @@ def get_basic_auth_header(user, password):
 
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
+
 
 def validate_cli_arguments(parser, args):
     """
@@ -95,7 +118,10 @@ def validate_cli_arguments(parser, args):
         missing.append("--profile")
 
     if missing:
-        parser.error("Missing required command line argument(s): " + ", ".join(missing))
+        parser.error(
+            "Missing required command line argument(s): " +
+            ", ".join(missing))
+
 
 def get_oauth_bearer_token(snow_url, client_id, client_secret):
     """
@@ -119,7 +145,11 @@ def get_oauth_bearer_token(snow_url, client_id, client_secret):
         }
     ).encode("utf-8")
 
-    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers=headers,
+        method="POST")
     with urllib.request.urlopen(req) as resp:
         body = resp.read().decode("utf-8")
         try:
@@ -133,13 +163,15 @@ def get_oauth_bearer_token(snow_url, client_id, client_secret):
 
     return f"Bearer {access_token}"
 
+
 def send_request(url, method, auth_header, payload=None, extra_headers=None):
     """
     Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
     Returns (status, data) where data is parsed JSON when possible.
     """
 
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    headers = {"Accept": "application/json",
+               "Content-Type": "application/json"}
     if extra_headers:
         headers.update(extra_headers)
     headers["Authorization"] = auth_header
@@ -149,7 +181,8 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
     else:
         data = payload  # bytes or None
 
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    req = urllib.request.Request(
+        url, data=data, headers=headers, method=method)
     with urllib.request.urlopen(req) as resp:
         status = resp.getcode()
         body = resp.read().decode("utf-8")
@@ -160,14 +193,17 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
             sys.exit(1)
         return status, data
 
+
 def get_datetime(minutes=0):
     """
     Generates the date/time string minutes into the future
     """
+    
     delta = timedelta(minutes=minutes)
     datetime_now = datetime.now()
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
+
 
 def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
     """
@@ -178,14 +214,22 @@ def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
 
     sys_id = ""
     if not custom:
-        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, profile=profile)
+        status, data = get_by_number(
+            snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, profile=profile)
         if status != 200:
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
         sys_id = data["result"][0]["sys_id"]["value"]
     return sys_id
 
-def create(snow_url, snow_standard_change, auth_header, short_description, custom, profile):
+
+def create(
+        snow_url,
+        snow_standard_change,
+        auth_header,
+        short_description,
+        custom,
+        profile):
     """
     Create a standard change from a template with a customised short description.
     It is scheduled immediately.
@@ -226,6 +270,7 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
         # Send data in the request query string
         return send_request(url, method, auth_header)
 
+
 def implement(snow_url, number, auth_header, custom, profile):
     """
     Update an existing change identified by the change number. Update the state to "Implement".
@@ -244,11 +289,14 @@ def implement(snow_url, number, auth_header, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
-    method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
+    sys_id = get_sys_id_if_required(
+        snow_url, number, auth_header, custom, profile)
+    method, path = resolve_endpoint(
+        custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES["Implement"]}
     return send_request(url, method, auth_header, payload=fields)
+
 
 def review(snow_url, number, auth_header, result, custom, profile):
     """
@@ -278,12 +326,18 @@ def review(snow_url, number, auth_header, result, custom, profile):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
-    method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
+    sys_id = get_sys_id_if_required(
+        snow_url, number, auth_header, custom, profile)
+    method, path = resolve_endpoint(
+        custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
-    fields = {"state": SNOW_STATES["Review"], "close_code": close_code, "close_notes": close_notes}
+    fields = {
+        "state": SNOW_STATES["Review"],
+        "close_code": close_code,
+        "close_notes": close_notes}
 
     return send_request(url, method, auth_header, payload=fields)
+
 
 def get_by_number(snow_url, number, auth_header, custom, profile):
     """
@@ -302,7 +356,8 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    method, path = resolve_endpoint(custom, "get_by_number", profile=profile, number=number)
+    method, path = resolve_endpoint(
+        custom, "get_by_number", profile=profile, number=number)
     base_url = f"{snow_url}{path}"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
@@ -310,6 +365,7 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
         return send_request(base_url, method, auth_header)
     else:
         return send_request(url, method, auth_header)
+
 
 def get_template_id(snow_url, auth_header, name, custom, profile):
     """
@@ -334,6 +390,7 @@ def get_template_id(snow_url, auth_header, name, custom, profile):
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, method, auth_header)
 
+
 def post_comment(snow_url, number, auth_header, comment, custom, profile):
     """
     Post a work note to a change. The work note is a non publicly visible comment.
@@ -353,11 +410,14 @@ def post_comment(snow_url, number, auth_header, comment, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
-    method, path = resolve_endpoint(custom, "post_comment", profile=profile, number=number, sys_id=sys_id)
+    sys_id = get_sys_id_if_required(
+        snow_url, number, auth_header, custom, profile)
+    method, path = resolve_endpoint(
+        custom, "post_comment", profile=profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
     payload = {"work_notes": comment}
     return send_request(url, method, auth_header, payload=payload)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -366,44 +426,102 @@ def main():
     )
     parser.add_argument("--auth", choices=["password", "oauth"], required=True,
                         help="authentication mode (required)")
-    parser.add_argument("--snow-host", help="ServiceNow instance host (required)")
-    parser.add_argument("--snow-user", help="ServiceNow username (required with --auth password)")
-    parser.add_argument("--snow-password", help="ServiceNow password (required with --auth password)")
-    parser.add_argument("--client-id", help="OAuth client ID (required with --auth oauth)")
-    parser.add_argument("--client-secret", help="OAuth client secret (required with --auth oauth)")
-    parser.add_argument("--custom", action="store_true", help="use custom API endpoint mappings")
-    parser.add_argument("--profile", help="profile ID (required with --custom)")
-    parser.add_argument("--json", action="store_true", help="output API response as formatted JSON")
-    parser.add_argument("--verbose", action="store_true", help="print progress messages")
+    parser.add_argument(
+        "--snow-host",
+        help="ServiceNow instance host (required)")
+    parser.add_argument(
+        "--snow-user",
+        help="ServiceNow username (required with --auth password)")
+    parser.add_argument(
+        "--snow-password",
+        help="ServiceNow password (required with --auth password)")
+    parser.add_argument(
+        "--client-id",
+        help="OAuth client ID (required with --auth oauth)")
+    parser.add_argument(
+        "--client-secret",
+        help="OAuth client secret (required with --auth oauth)")
+    parser.add_argument(
+        "--custom",
+        action="store_true",
+        help="use custom API endpoint mappings")
+    parser.add_argument(
+        "--profile",
+        help="profile ID (required with --custom)")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="output API response as formatted JSON")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print progress messages")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # create subcommand
-    sp_create = subparsers.add_parser("create", help="Create a new standard change")
-    sp_create.add_argument("--standard-change", required=True, help="standard change sys_id (required)")
-    sp_create.add_argument("--short-description", required=True, help="short description for create (required)")
+    sp_create = subparsers.add_parser(
+        "create", help="Create a new standard change")
+    sp_create.add_argument(
+        "--standard-change",
+        required=True,
+        help="standard change sys_id (required)")
+    sp_create.add_argument(
+        "--short-description",
+        required=True,
+        help="short description for create (required)")
 
     # implement subcommand
-    sp_implement = subparsers.add_parser("implement", help="Update change state to Implement")
-    sp_implement.add_argument("--number", required=True, help="Change number e.g. CHG0030052 (required)")
+    sp_implement = subparsers.add_parser(
+        "implement", help="Update change state to Implement")
+    sp_implement.add_argument(
+        "--number",
+        required=True,
+        help="Change number e.g. CHG0030052 (required)")
 
     # review subcommand
-    sp_review = subparsers.add_parser("review", help="Update change state to Review")
-    sp_review.add_argument("--number", required=True, help="Change number e.g CHG0030052 (required)")
-    sp_review.add_argument("--result", choices=["successful", "unsuccessful"], required=True,
-                          help="result for close (required)")
+    sp_review = subparsers.add_parser(
+        "review", help="Update change state to Review")
+    sp_review.add_argument(
+        "--number",
+        required=True,
+        help="Change number e.g CHG0030052 (required)")
+    sp_review.add_argument(
+        "--result",
+        choices=[
+            "successful",
+            "unsuccessful"],
+        required=True,
+        help="result for close (required)")
 
     # get subcommand: retrieve a change
-    sp_get = subparsers.add_parser("get", help="Get an existing change by sys_id (only for standard API) or number")
-    sp_get.add_argument("--number", required=True, help="Change number e.g. CHG0030052 (required)")
+    sp_get = subparsers.add_parser(
+        "get",
+        help="Get an existing change by sys_id (only for standard API) or number")
+    sp_get.add_argument(
+        "--number",
+        required=True,
+        help="Change number e.g. CHG0030052 (required)")
 
     # get-template-id subcommand: retrieve template ID by name
-    sp_get_template = subparsers.add_parser("get-template-id", help="Get a standard change template ID by name")
-    sp_get_template.add_argument("--name", required=True, help="template name (required)")
+    sp_get_template = subparsers.add_parser(
+        "get-template-id",
+        help="Get a standard change template ID by name")
+    sp_get_template.add_argument(
+        "--name",
+        required=True,
+        help="template name (required)")
 
     # post-comment subcommand: post a comment to a change
-    sp_post_comment = subparsers.add_parser("post-comment", help="Post a comment to a change request")
-    sp_post_comment.add_argument("--number", required=True, help="Change number on e.g CHG0030052 (required)")
-    sp_post_comment.add_argument("--comment", required=True, help="comment text (required)")
+    sp_post_comment = subparsers.add_parser(
+        "post-comment", help="Post a comment to a change request")
+    sp_post_comment.add_argument(
+        "--number",
+        required=True,
+        help="Change number on e.g CHG0030052 (required)")
+    sp_post_comment.add_argument(
+        "--comment",
+        required=True,
+        help="comment text (required)")
 
     args = parser.parse_args()
     validate_cli_arguments(parser, args)
@@ -415,7 +533,8 @@ def main():
             password = args.snow_password.strip()
             auth_header = get_basic_auth_header(user, password)
         else:
-            auth_header = get_oauth_bearer_token(snow_url, args.client_id, args.client_secret)
+            auth_header = get_oauth_bearer_token(
+                snow_url, args.client_id, args.client_secret)
 
         match args.command:
             case "create":
@@ -428,8 +547,13 @@ def main():
                 status, data = implement(snow_url, args.number, auth_header, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "review":
-                if args.verbose: print(f"Updating change {args.number} state to Review with result {args.result}...")
-                status, data = review(snow_url, args.number, auth_header, result=args.result, custom=args.custom, profile=args.profile)
+                if args.verbose:
+                    print(
+                        f"Updating change {
+                            args.number} state to Review with result {
+                            args.result}...")
+                status, data = review(snow_url, args.number, auth_header,
+                                      result=args.result, custom=args.custom, profile=args.profile)
                 result_type = "single_change"
             case "get":
                 if args.verbose: print(f"Retrieving change with number {args.number}...")
@@ -455,7 +579,6 @@ def main():
                 print(data)
             case _:
                 parser.error("unknown command")
-
 
     except urllib.error.HTTPError as e:
         print(e.code, e.read().decode("utf-8"), file=sys.stderr)
@@ -484,22 +607,32 @@ def main():
                 print("CHANGE_NUMBER=" + change_number)
                 print("CHANGE_SYS_ID=" + change_sys_id)
                 print("CHANGE_STATE=" + change_state)
-                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
+                print(
+                    f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={change_sys_id}")
             case "change_list":
                 print("CHANGE_NUMBER=" + data["result"][0]["number"]["value"])
                 print("CHANGE_SYS_ID=" + data["result"][0]["sys_id"]["value"])
-                print("CHANGE_STATE=" + data["result"][0]["state"]["display_value"])
-                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result'][0]['sys_id']['value']}")
+                print(
+                    "CHANGE_STATE=" +
+                    data["result"][0]["state"]["display_value"])
+                print(
+                    f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={
+                        data['result'][0]['sys_id']['value']}")
             case "template_list":
-                template_id = data["result"][0].get("sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
+                template_id = data["result"][0].get(
+                    "sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
                 print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
                 print("TEMPLATE_NAME=\"" + args.name + "\"")
-                print(f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
+                print(
+                    f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
             case "table_item":
                 print("CHANGE_NUMBER=" + data["result"]["number"])
                 print("CHANGE_SYS_ID=" + data["result"]["sys_id"])
                 print("CHANGE_STATE=" + data["result"]["state"])
-                print(f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={data['result']['sys_id']}")
+                print(
+                    f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={
+                        data['result']['sys_id']}")
+
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,9 @@ import unittest
 
 class TestCliEnvironmentValidation(unittest.TestCase):
     def setUp(self):
-        self.cli_script = os.path.join(os.path.dirname(__file__), "snow_change_manager.py")
+        self.cli_script = os.path.join(
+            os.path.dirname(__file__),
+            "snow_change_manager.py")
 
     def run_cli(self, args):
         result = subprocess.run(
@@ -35,16 +37,22 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertIn("--profile", result.stdout)
 
     def test_missing_password_required_arguments_are_reported(self):
-        result = self.run_cli(["--auth", "password", "get-template-id", "--name", "Any Template"])
+        result = self.run_cli(
+            ["--auth", "password", "get-template-id", "--name", "Any Template"])
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing required command line argument(s): --snow-host, --snow-user, --snow-password", result.stderr)
+        self.assertIn(
+            "Missing required command line argument(s): --snow-host, --snow-user, --snow-password",
+            result.stderr)
 
     def test_missing_oauth_required_arguments_are_reported(self):
-        result = self.run_cli(["--auth", "oauth", "get-template-id", "--name", "Any Template"])
+        result = self.run_cli(
+            ["--auth", "oauth", "get-template-id", "--name", "Any Template"])
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing required command line argument(s): --snow-host, --client-id, --client-secret", result.stderr)
+        self.assertIn(
+            "Missing required command line argument(s): --snow-host, --client-id, --client-secret",
+            result.stderr)
 
     def test_whitespace_only_argument_is_reported(self):
         result = self.run_cli(
@@ -58,7 +66,9 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing required command line argument(s): --snow-user", result.stderr)
+        self.assertIn(
+            "Missing required command line argument(s): --snow-user",
+            result.stderr)
 
     def test_review_state_still_requires_result(self):
         result = self.run_cli(
@@ -72,7 +82,9 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("review: error: the following arguments are required: --result", result.stderr)
+        self.assertIn(
+            "review: error: the following arguments are required: --result",
+            result.stderr)
 
     def test_custom_mode_requires_profile(self):
         result = self.run_cli(
@@ -87,7 +99,9 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing required command line argument(s): --profile", result.stderr)
+        self.assertIn(
+            "Missing required command line argument(s): --profile",
+            result.stderr)
 
 
 if __name__ == "__main__":

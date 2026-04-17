@@ -44,17 +44,16 @@ class TestSnowChangeHelper(unittest.TestCase):
             "COMMITS_CONTEXT": json.dumps(commits_context),
         }
 
-        output = self.run_main(["--output-mode", "stdout", "list-commits"], env)
+        output = self.run_main(
+            ["--output-mode", "stdout", "list-commits"], env)
 
         self.assertEqual(
-            output,
-            "COMMITS_HTML<<EOF\n"
+            output, "COMMITS_HTML<<EOF\n"
             "<table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse;'>"
             "<thead><tr><th>Commit</th><th>Author</th><th>Message</th></tr></thead>"
             "<tbody><tr><td><code>abc123</code></td><td>alice</td><td>Fix bug with extra details</td></tr>\n"
             "</tbody></table>\n"
-            "EOF\n",
-        )
+            "EOF\n", )
 
     def test_build_change_html_writes_expected_stdout_output(self):
         env = {
@@ -69,11 +68,11 @@ class TestSnowChangeHelper(unittest.TestCase):
             "COMMITS_HTML": "<table><tbody><tr><td>commit</td></tr></tbody></table>",
         }
 
-        output = self.run_main(["--output-mode", "stdout", "build-change-html"], env)
+        output = self.run_main(
+            ["--output-mode", "stdout", "build-change-html"], env)
 
         self.assertEqual(
-            output,
-            "CHANGE_HTML<<EOF\n"
+            output, "CHANGE_HTML<<EOF\n"
             "<h2>Properties</h2>\n"
             "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse: collapse;\">\n"
             "  <thead><tr><th>Property</th><th>Value</th></tr></thead>\n"
@@ -89,8 +88,7 @@ class TestSnowChangeHelper(unittest.TestCase):
             "<h3>Commits</h3>\n"
             "<table><tbody><tr><td>commit</td></tr></tbody></table>\n"
             "EOF\n"
-            "SHORT_DESCRIPTION=Release Manage breast screening version v1.2.3\n",
-        )
+            "SHORT_DESCRIPTION=Release Manage breast screening version v1.2.3\n", )
 
     def test_add_create_change_summary_writes_expected_stdout_output(self):
         env = {
@@ -101,11 +99,11 @@ class TestSnowChangeHelper(unittest.TestCase):
             "CHANGE_HTML": "<h2>Properties</h2>\n<table><tbody><tr><td>Value</td></tr></tbody></table>",
         }
 
-        output = self.run_main(["--output-mode", "stdout", "add-create-change-summary"], env)
+        output = self.run_main(
+            ["--output-mode", "stdout", "add-create-change-summary"], env)
 
         self.assertEqual(
-            output,
-            "<h2>ServiceNow Change</h2>\n"
+            output, "<h2>ServiceNow Change</h2>\n"
             "<table>\n"
             "  <thead><tr><th>Property</th><th>Value</th></tr></thead>\n"
             "  <tbody>\n"
@@ -115,11 +113,11 @@ class TestSnowChangeHelper(unittest.TestCase):
             "  </tbody>\n"
             "</table>\n"
             "<h2>Properties</h2>\n"
-            "<table><tbody><tr><td>Value</td></tr></tbody></table>\n",
-        )
+            "<table><tbody><tr><td>Value</td></tr></tbody></table>\n", )
 
     @patch("snow_change_helper.urllib.request.urlopen")
-    def test_extract_pr_jira_uses_mocked_github_api_and_writes_stdout(self, mock_urlopen):
+    def test_extract_pr_jira_uses_mocked_github_api_and_writes_stdout(
+            self, mock_urlopen):
         mock_urlopen.return_value = _MockHttpResponse(
             {
                 "body": "Release details https://nhsd-jira.digital.nhs.uk/browse/MBI-123",
@@ -133,7 +131,8 @@ class TestSnowChangeHelper(unittest.TestCase):
             "GITHUB_TOKEN": "fake-token",
         }
 
-        output = self.run_main(["--output-mode", "stdout", "extract-pr-jira"], env)
+        output = self.run_main(
+            ["--output-mode", "stdout", "extract-pr-jira"], env)
 
         self.assertEqual(
             output,

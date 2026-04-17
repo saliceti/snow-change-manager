@@ -74,7 +74,9 @@ def build_snow_args() -> list[str]:
     return snow_args
 
 
-def run_snow_command(command_args: list[str], capture_output: bool = False) -> subprocess.CompletedProcess[str]:
+def run_snow_command(
+        command_args: list[str],
+        capture_output: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["./snow_change_manager.py", *build_snow_args(), *command_args],
         capture_output=capture_output,
@@ -139,7 +141,8 @@ def extract_pr_jira() -> None:
         jira_link = jira_link_match.group(0) if jira_link_match else ""
 
     if jira_link == "" and jira_reference != "":
-        print(f"Jira link not found. Using Jira reference {jira_reference} from PR title.")
+        print(
+            f"Jira link not found. Using Jira reference {jira_reference} from PR title.")
         jira_link = f"https://nhsd-jira.digital.nhs.uk/browse/{jira_reference}"
 
     repo_html_url = os.environ["REPO_HTML_URL"]

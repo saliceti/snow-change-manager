@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 import json
 
+
 class TestSnowChangeLifecycle(unittest.TestCase):
     """
     Integration test for ServiceNow change management CLI.
@@ -24,17 +25,26 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         cls.change_number = None
 
         missing_vars = []
-        for var in ["SNOW_HOST", "CLIENT_ID", "CLIENT_SECRET", "SNOW_STANDARD_CHANGE", "PROFILE"]:
+        for var in [
+            "SNOW_HOST",
+            "CLIENT_ID",
+            "CLIENT_SECRET",
+            "SNOW_STANDARD_CHANGE",
+                "PROFILE"]:
             if not os.environ.get(var):
                 missing_vars.append(var)
 
         if missing_vars:
-            raise RuntimeError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise RuntimeError(
+                f"Missing required environment variables: {
+                    ', '.join(missing_vars)}")
 
     def setUp(self):
         """Reset state for each test."""
         self.change_number = None
-        self.cli_script = os.path.join(os.path.dirname(__file__), "snow_change_manager.py")
+        self.cli_script = os.path.join(
+            os.path.dirname(__file__),
+            "snow_change_manager.py")
 
     def run_cli(self, *args):
         """
@@ -72,7 +82,10 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             "--short-description", f"Integration Test Change on {now}"
         )
 
-        self.assertEqual(returncode, 0, f"CLI failed: {stderr}\nOutput:\n{stdout}")
+        self.assertEqual(
+            returncode,
+            0,
+            f"CLI failed: {stderr}\nOutput:\n{stdout}")
         output = self.parse_cli_output(stdout)
 
         # Store change number for subsequent tests
@@ -92,13 +105,18 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         self.assertEqual(data["result"]["number"], output['CHANGE_NUMBER'])
         self.assertEqual(data["result"]["state"], "Scheduled")
 
-        print(f"\n✓ Created change: {output['CHANGE_NUMBER']} ({self.change_number}) with state: Scheduled")
+        print(
+            f"\n✓ Created change: {
+                output['CHANGE_NUMBER']} ({
+                self.change_number}) with state: Scheduled")
 
     def test_02_update_to_implement(self):
         """Test: Update change state to Implement."""
         change_number = self.__class__.change_number
 
-        self.assertIsNotNone(change_number, "change_number not set from test_01_create_change")
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
             "implement",
@@ -106,7 +124,6 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-
 
         # Verify via GET with --json
         returncode, stdout, stderr = self.run_cli(
@@ -124,7 +141,9 @@ class TestSnowChangeLifecycle(unittest.TestCase):
     def test_03_update_to_review(self):
         """Test: Update change state to Review."""
         change_number = self.__class__.change_number
-        self.assertIsNotNone(change_number, "change_number not set from test_01_create_change")
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
             "review",
@@ -150,7 +169,9 @@ class TestSnowChangeLifecycle(unittest.TestCase):
     def test_04_post_work_note(self):
         """Test: Post work note to change."""
         change_number = self.__class__.change_number
-        self.assertIsNotNone(change_number, "change_number not set from test_01_create_change")
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
