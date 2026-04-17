@@ -27,7 +27,7 @@ Example:
 DEFAULT_ROUTES = {
     "create": {"method": "POST", "path": "/api/sn_chg_rest/change/standard/{template_id}"},
     "get_by_number": {"method": "GET", "path": "/api/sn_chg_rest/change"},
-    "get_template_id": {"method": "GET", "path": "/api/sn_chg_rest/v1/change/standard/template"},
+    "get_template_id": {"method": "GET", "path": "/api/sn_chg_rest/change/standard/template"},
     "post_comment": {"method": "PATCH", "path": "/api/now/table/change_request/{sys_id}"},
     "update": {"method": "PATCH", "path": "/api/sn_chg_rest/change/{sys_id}"},
 }
@@ -51,24 +51,38 @@ SNOW_STATES = {
 
 
 def resolve_endpoint(custom, function_name, **params):
+    """
+    Resolve API endpoint to accomodate the standard ServiceNow API and the NHS custom API endpoints.
+    Returns HTTP verb and path.
+    """
+
     routes = CUSTOM_ROUTES if custom else DEFAULT_ROUTES
     route = routes[function_name]
     return route["method"], route["path"].format(**params)
 
 def get_basic_auth_header(user, password):
+    """
+    Create the Authentication header value for HTTP basic auth
+    Requires ServiceNow username and password
+    """
+
     creds = f"{user}:{password}".encode("utf-8")
     return "Basic " + base64.b64encode(creds).decode("ascii")
 
 def validate_cli_arguments(parser, args):
+    """
+    Validate the combinations of command line arguments for the ones not directly covered by the parser.
+    """
+
     missing = []
 
-    if not args.snow_host or not args.snow_host.strip():
+    if not args.snow_host:
         missing.append("--snow-host")
 
     if args.auth == "password":
-        if not args.snow_user or not args.snow_user.strip():
+        if not args.snow_user:
             missing.append("--snow-user")
-        if not args.snow_password or not args.snow_password.strip():
+        if not args.snow_password:
             missing.append("--snow-password")
 
     if args.auth == "oauth":
@@ -77,13 +91,21 @@ def validate_cli_arguments(parser, args):
         if not args.client_secret:
             missing.append("--client-secret")
 
-    if args.custom and (not args.profile or not args.profile.strip()):
+    if args.custom and not args.profile:
         missing.append("--profile")
 
     if missing:
         parser.error("Missing required command line argument(s): " + ", ".join(missing))
 
 def get_oauth_bearer_token(snow_url, client_id, client_secret):
+    """
+    When using oauth authentication, request the bearer token. It is then used in any API request in the Authentication header.
+    It is valid for 30 min.
+    Requires API client id and secret.
+
+    See: https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=cbaafe453b7cfe1067201da985e45a75
+    """
+
     url = f"{snow_url}/oauth_token.do"
     headers = {
         "Accept": "application/json",
@@ -116,6 +138,7 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
     Generic request helper. payload can be a dict (will be JSON-encoded), bytes or None.
     Returns (status, data) where data is parsed JSON when possible.
     """
+
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     if extra_headers:
         headers.update(extra_headers)
@@ -138,12 +161,21 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
         return status, data
 
 def get_datetime(minutes=0):
+    """
+    Generates the date/time string minutes into the future
+    """
     delta = timedelta(minutes=minutes)
     datetime_now = datetime.now()
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
 def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
+    """
+    Use the change number to retrieve the change sys_id.
+    Required for the standard API endpoints.
+    The NHS custom API takes the change number as argument. In this case sys_is empty and ignored.
+    """
+
     sys_id = ""
     if not custom:
         status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, profile=profile)
@@ -155,16 +187,23 @@ def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
 
 def create(snow_url, snow_standard_change, auth_header, short_description, custom, profile):
     """
-    Construct and POST a standard change using the provided parameters.
+    Create a standard change from a template with a customised short description.
+    It is scheduled immediately.
 
-    Uses the ServiceNow "Standard Change" REST endpoint:
-      POST /api/sn_chg_rest/change/standard/{template_id}
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    Endpoint:
+        POST /api/sn_chg_rest/change/standard/{template_id}
 
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    NHS custom API:
+        https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=9611a0a2c30c4310f56ef73d0501318d
+    Endpoint:
+        POST /api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}
+    The parameters are sent in the request body as opposed to the query string in the standard API.
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
+
     method, path = resolve_endpoint(
         custom,
         "create",
@@ -189,14 +228,18 @@ def create(snow_url, snow_standard_change, auth_header, short_description, custo
 
 def implement(snow_url, number, auth_header, custom, profile):
     """
-    Update an existing change identified by sys_id via a PATCH request.
+    Update an existing change identified by the change number. Update the state to "Implement".
 
-    Uses the Change REST endpoint:
-      PATCH /api/sn_chg_rest/change/{sys_id}
-    to set the 'state' field.
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    Endpoint:
+        PATCH /api/sn_chg_rest/change/{sys_id}
+    Uses get_sys_id_if_required() and the change number to get sys_id.
 
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    NHS custom API:
+        https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=f3783a8d3b3cfe1067201da985e45ab3
+    Endpoint:
+        PUT /api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{change number}
 
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
@@ -209,16 +252,22 @@ def implement(snow_url, number, auth_header, custom, profile):
 
 def review(snow_url, number, auth_header, result, custom, profile):
     """
-    Close an existing change identified by sys_id via a PATCH request.
+    Update an existing change state to review and set the closure information.
 
-    Sends state="Closed" plus close_code and close_notes to:
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    Endpoint:
       PATCH /api/sn_chg_rest/change/{sys_id}
+    Uses get_sys_id_if_required() and the change number to get sys_id.
 
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    NHS custom API:
+        https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=f3783a8d3b3cfe1067201da985e45ab3
+    Endpoint:
+        PUT /api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{change number}
 
-    Returns (status, data).
+    Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
+
     if result not in ("successful", "unsuccessful"):
         raise ValueError("result must be one of: successful, unsuccessful")
 
@@ -240,16 +289,19 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
     """
     Retrieve an existing change identified by number.
 
-    Uses:
-      GET /api/sn_chg_rest/change?sysparm_query=...
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    Endpoint:
+        GET /api/sn_chg_rest/change?sysparm_query=...
 
-    Filters for the change matching the provided number (e.g., CHG0030052).
+    NHS custom API:
+        Doc TBC
+    Endpoint:
+        /api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{change number}
 
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
-
-    Returns (status, data).
+    Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
+
     method, path = resolve_endpoint(custom, "get_by_number", profile=profile, number=number)
     base_url = f"{snow_url}{path}"
     query = f"number={urllib.parse.quote(number)}"
@@ -261,36 +313,44 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
 
 def get_template_id(snow_url, auth_header, name, custom, profile):
     """
-    Retrieve a standard change template by name.
+    Retrieve a standard change template id by name.
 
-    Uses:
-      GET /api/sn_chg_rest/v1/change/standard/template?sysparm_query=...
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
+    Endpoint:
+        GET /api/sn_chg_rest/change/standard/template?sysparm_query=active=true^name={name}
 
-    Filters for active templates matching the provided name.
+    NHS custom API:
+        https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=b42ab2053b7cfe1067201da985e45af3
+    Endpoint:
+        GET /api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID
 
-    See ServiceNow Change Management API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/change-management-api.html
-
-    Returns (status, data).
+    Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
+
     method, path = resolve_endpoint(custom, "get_template_id", profile=profile)
     base_url = f"{snow_url}{path}"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
-    print(url)
     return send_request(url, method, auth_header)
 
 def post_comment(snow_url, number, auth_header, comment, custom, profile):
     """
-    Post a comment to a change request using the Table API.
+    Post a work note to a change. The work note is a non publicly visible comment.
+    The change displays all works notes with their author, ordered by date.
 
-    Uses:
+    Standard ServiceNow API:
+        https://www.servicenow.com/docs/r/api-reference/rest-apis/c_TableAPI.html
+    Endpoint:
       PATCH /api/now/table/change_request/{sys_id}
+    Uses get_sys_id_if_required() and the change number to get sys_id.
 
-    See ServiceNow Table API docs for details:
-    https://www.servicenow.com/docs/r/api-reference/rest-apis/c_TableAPI.html
+    NHS custom API:
+        https://nhsdigitallive.service-now.com/nhs_digital?id=kb_article_view&sys_kb_id=f3783a8d3b3cfe1067201da985e45ab3
+    Endpoint:
+        PUT /api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{change number}
 
-    Returns (status, data).
+    Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
     sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
