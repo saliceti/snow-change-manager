@@ -158,6 +158,16 @@ def extract_api_value(field, preferred_key="value"):
             return field.get("display_value")
     return field
 
+def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
+    sys_id = ""
+    if not custom:
+        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, profile=profile)
+        if status != 200:
+            print(f"Error: Unexpected status code - {status}")
+            sys.exit(1)
+        sys_id = data["result"][0]["sys_id"]["value"]
+    return sys_id
+
 def create(snow_url, snow_standard_change, auth_header, short_description, custom, profile):
     """
     Construct and POST a standard change using the provided parameters.
@@ -206,14 +216,7 @@ def update(snow_url, number, auth_header, state, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    sys_id = ""
-    if not custom:
-        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
-        if status != 200:
-            print(f"Error: Unexpected status code - {status}")
-            sys.exit(1)
-        sys_id = data["result"][0]["sys_id"]["value"]
-
+    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
     method, path = resolve_endpoint(custom, "update", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES[state]}
@@ -241,15 +244,7 @@ def review(snow_url, number, auth_header, result, custom, profile):
         close_code = "unsuccessful"
         close_notes = "Change did not complete successfully"
 
-    sys_id = ""
-    if not custom:
-        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
-        if status != 200:
-            print(f"Error: Unexpected status code - {status}")
-            sys.exit(1)
-        sys_id = data["result"][0]["sys_id"]["value"]
-
-
+    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
     method, path = resolve_endpoint(custom, "close", number=number, sys_id=sys_id, profile=profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES["Review"], "close_code": close_code, "close_notes": close_notes}
@@ -312,14 +307,8 @@ def post_comment(snow_url, number, auth_header, comment, custom, profile):
 
     Returns (status, data).
     """
-    sys_id = ""
-    if not custom:
-        status, data = get_by_number(snow_url=snow_url, number=number, auth_header=auth_header, custom=False, profile=profile)
-        if status != 200:
-            print(f"Error: Unexpected status code - {status}")
-            sys.exit(1)
-        sys_id = data["result"][0]["sys_id"]["value"]
 
+    sys_id = get_sys_id_if_required(snow_url, number, auth_header, custom, profile)
     method, path = resolve_endpoint(custom, "post_comment", profile=profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
     payload = {"work_notes": comment}
