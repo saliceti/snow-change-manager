@@ -176,25 +176,24 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         returncode, stdout, stderr = self.run_cli(
-            "post-comment",
+            "post-work-note",
             "--number", change_number,
-            "--comment", f"Test new comment on {now}"
+            "--text", f"Test new work note on {now}"
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
 
-        # The custom endpoint doesn't return the work notes
-        # # Verify via GET with --json
-        # returncode, stdout, stderr = self.run_cli(
-        #     "--json",
-        #     "get",
-        #     "--number", change_number,
-        # )
-        # self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
-        # data = json.loads(stdout)
-        # print(stdout)
-        # self.assertEqual(data["result"]["number"], change_number)
-        # self.assertIn(f"Test new comment on {now}", data["result"]["comments_and_work_notes"])
+        # Verify via GET with --json
+        returncode, stdout, stderr = self.run_cli(
+            "--json",
+            "get",
+            "--number", change_number,
+        )
+        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
+        data = json.loads(stdout)
+
+        self.assertEqual(data["result"]["number"], change_number)
+        self.assertIn(f"Test new work note on {now}", data["result"]["comments_and_work_notes"])
 
         print(f"✓ Posted work note")
 

@@ -34,7 +34,7 @@ DEFAULT_ROUTES = {
     "get_template_id": {
         "method": "GET",
         "path": "/api/sn_chg_rest/change/standard/template"},
-    "post_comment": {
+    "post_work_note": {
         "method": "PATCH",
         "path": "/api/now/table/change_request/{sys_id}"},
     "update": {
@@ -52,7 +52,7 @@ CUSTOM_ROUTES = {
     "get_template_id": {
         "method": "GET",
         "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
-    "post_comment": {
+    "post_work_note": {
         "method": "PUT",
         "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
     "update": {
@@ -198,7 +198,7 @@ def get_datetime(minutes=0):
     """
     Generates the date/time string minutes into the future
     """
-    
+
     delta = timedelta(minutes=minutes)
     datetime_now = datetime.now()
     datetime_plus_delta = datetime_now + delta
@@ -391,7 +391,7 @@ def get_template_id(snow_url, auth_header, name, custom, profile):
     return send_request(url, method, auth_header)
 
 
-def post_comment(snow_url, number, auth_header, comment, custom, profile):
+def post_work_note(snow_url, number, auth_header, work_note, custom, profile):
     """
     Post a work note to a change. The work note is a non publicly visible comment.
     The change displays all works notes with their author, ordered by date.
@@ -413,9 +413,9 @@ def post_comment(snow_url, number, auth_header, comment, custom, profile):
     sys_id = get_sys_id_if_required(
         snow_url, number, auth_header, custom, profile)
     method, path = resolve_endpoint(
-        custom, "post_comment", profile=profile, number=number, sys_id=sys_id)
+        custom, "post_work_note", profile=profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
-    payload = {"work_notes": comment}
+    payload = {"work_notes": work_note}
     return send_request(url, method, auth_header, payload=payload)
 
 
@@ -511,17 +511,17 @@ def main():
         required=True,
         help="template name (required)")
 
-    # post-comment subcommand: post a comment to a change
-    sp_post_comment = subparsers.add_parser(
-        "post-comment", help="Post a comment to a change request")
-    sp_post_comment.add_argument(
+    # post-work-note subcommand: post a work note to a change
+    sp_post_work_note = subparsers.add_parser(
+        "post-work-note", help="Post a work note to a change request")
+    sp_post_work_note.add_argument(
         "--number",
         required=True,
         help="Change number on e.g CHG0030052 (required)")
-    sp_post_comment.add_argument(
-        "--comment",
+    sp_post_work_note.add_argument(
+        "--text",
         required=True,
-        help="comment text (required)")
+        help="work note text (required)")
 
     args = parser.parse_args()
     validate_cli_arguments(parser, args)
@@ -572,9 +572,9 @@ def main():
                     profile=args.profile,
                 )
                 result_type = "template_list"
-            case "post-comment":
-                if args.verbose: print(f"Posting comment...")
-                status, data = post_comment(snow_url, args.number, auth_header, comment=args.comment, custom=args.custom, profile=args.profile)
+            case "post-work-note":
+                if args.verbose: print(f"Posting work note...")
+                status, data = post_work_note(snow_url, args.number, auth_header, work_note=args.text, custom=args.custom, profile=args.profile)
                 result_type = "table_item"
                 print(data)
             case _:

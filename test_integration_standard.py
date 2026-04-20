@@ -178,9 +178,9 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         returncode, stdout, stderr = self.run_cli(
-            "post-comment",
+            "post-work-note",
             "--number", change_number,
-            "--comment", f"Test new comment on {now}"
+            "--text", f"Test new work note on {now}"
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
@@ -195,7 +195,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         data = json.loads(stdout)
         self.assertEqual(data["result"][0]["number"]["value"], change_number)
         self.assertIn(
-            f"Test new comment on {now}",
+            f"Test new work note on {now}",
             data["result"][0]["comments_and_work_notes"]['display_value'])
 
         print(f"✓ Posted work note")
