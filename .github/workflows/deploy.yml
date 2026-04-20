@@ -91,6 +91,7 @@ jobs:
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
       SNOW_AUTH: oauth
+      SNOW_CUSTOM: true
     outputs:
       CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
