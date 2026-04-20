@@ -18,8 +18,8 @@ class TestSnowChangeLifecycle(unittest.TestCase):
     def setUpClass(cls):
         """Verify required test inputs are set."""
         cls.snow_host = os.environ.get("SNOW_HOST")
-        cls.client_id = os.environ.get("CLIENT_ID")
-        cls.client_secret = os.environ.get("CLIENT_SECRET")
+        cls.snow_client_id = os.environ.get("SNOW_CLIENT_ID")
+        cls.snow_client_secret = os.environ.get("SNOW_CLIENT_SECRET")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
         cls.profile = os.environ.get("PROFILE")
         cls.change_number = None
@@ -27,8 +27,8 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         missing_vars = []
         for var in [
             "SNOW_HOST",
-            "CLIENT_ID",
-            "CLIENT_SECRET",
+            "SNOW_CLIENT_ID",
+            "SNOW_CLIENT_SECRET",
             "SNOW_STANDARD_CHANGE",
                 "PROFILE"]:
             if not os.environ.get(var):
@@ -56,8 +56,8 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             self.cli_script,
             "--auth", "oauth",
             "--snow-host", self.snow_host,
-            "--client-id", self.client_id,
-            "--client-secret", self.client_secret,
+            "--snow-client-id", self.snow_client_id,
+            "--snow-client-secret", self.snow_client_secret,
             "--custom",
             "--profile", self.profile,
         ] + list(args)

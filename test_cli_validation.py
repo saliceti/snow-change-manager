@@ -28,8 +28,8 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertIn("--snow-host", result.stdout)
         self.assertIn("--snow-user", result.stdout)
         self.assertIn("--snow-password", result.stdout)
-        self.assertIn("--client-id", result.stdout)
-        self.assertIn("--client-secret", result.stdout)
+        self.assertIn("--snow-client-id", result.stdout)
+        self.assertIn("--snow-client-secret", result.stdout)
         self.assertIn("--custom", result.stdout)
         self.assertIn("--profile", result.stdout)
         self.assertIn("--json", result.stdout)
@@ -51,7 +51,7 @@ class TestCliEnvironmentValidation(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(
-            "Missing required command line argument(s): --snow-host, --client-id, --client-secret",
+            "Missing required command line argument(s): --snow-host, --snow-client-id, --snow-client-secret",
             result.stderr)
 
     def test_whitespace_only_argument_is_reported(self):
@@ -91,8 +91,8 @@ class TestCliEnvironmentValidation(unittest.TestCase):
             [
                 "--auth", "oauth",
                 "--snow-host", "example.service-now.com",
-                "--client-id", "id",
-                "--client-secret", "secret",
+                "--snow-client-id", "id",
+                "--snow-client-secret", "secret",
                 "--custom",
                 "get-template-id", "--name", "Any Template"
             ],

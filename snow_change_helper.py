@@ -63,9 +63,9 @@ def build_snow_args() -> list[str]:
         ])
     elif snow_auth == "oauth":
         snow_args.extend([
-            "--client-id",
+            "--snow-client-id",
             os.environ["SNOW_CLIENT_ID"],
-            "--client-secret",
+            "--snow-client-secret",
             os.environ["SNOW_CLIENT_SECRET"],
         ])
     else:

@@ -15,7 +15,7 @@ Create or update ServiceNow standard changes
 General usage:
     ./snow_change_manager.py <global arguments> <command> <command arguments>
 Example:
-    ./snow_change_manager.py --auth oauth --client-id abcd123 --client-secret abc234 \\
+    ./snow_change_manager.py --auth oauth --snow-client-id abcd123 --snow-client-secret abc234 \\
         create --standard-change abc345 --short-description "Deploy version 123"
 
 For help with commands:
@@ -109,10 +109,10 @@ def validate_cli_arguments(parser, args):
             missing.append("--snow-password")
 
     if args.auth == "oauth":
-        if not args.client_id or not args.client_id.strip():
-            missing.append("--client-id")
-        if not args.client_secret or not args.client_secret.strip():
-            missing.append("--client-secret")
+        if not args.snow_client_id or not args.snow_client_id.strip():
+            missing.append("--snow-client-id")
+        if not args.snow_client_secret or not args.snow_client_secret.strip():
+            missing.append("--snow-client-secret")
 
     if args.custom and not args.profile:
         missing.append("--profile")
@@ -123,7 +123,7 @@ def validate_cli_arguments(parser, args):
             ", ".join(missing))
 
 
-def get_oauth_bearer_token(snow_url, client_id, client_secret):
+def get_oauth_bearer_token(snow_url, snow_client_id, snow_client_secret):
     """
     When using oauth authentication, request the bearer token. It is then used in any API request in the Authentication header.
     It is valid for 30 min.
@@ -140,8 +140,8 @@ def get_oauth_bearer_token(snow_url, client_id, client_secret):
     payload = urllib.parse.urlencode(
         {
             "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
+            "client_id": snow_client_id,
+            "client_secret": snow_client_secret,
         }
     ).encode("utf-8")
 
@@ -436,10 +436,10 @@ def main():
         "--snow-password",
         help="ServiceNow password (required with --auth password)")
     parser.add_argument(
-        "--client-id",
+        "--snow-client-id",
         help="OAuth client ID (required with --auth oauth)")
     parser.add_argument(
-        "--client-secret",
+        "--snow-client-secret",
         help="OAuth client secret (required with --auth oauth)")
     parser.add_argument(
         "--custom",
@@ -534,7 +534,7 @@ def main():
             auth_header = get_basic_auth_header(user, password)
         else:
             auth_header = get_oauth_bearer_token(
-                snow_url, args.client_id, args.client_secret)
+                snow_url, args.snow_client_id, args.snow_client_secret)
 
         match args.command:
             case "create":
@@ -619,9 +619,8 @@ def main():
                     f"CHANGE_LINK={snow_url}/now/nav/ui/classic/params/target/change_request.do?sys_id={
                         data['result'][0]['sys_id']['value']}")
             case "template_list":
-                template_id = data["result"][0].get(
-                    "sys_id") if args.custom else data["result"][0]["sys_id"]["value"]
-                print("TEMPLATE_ID=" + data["result"][0]["sys_id"]["value"])
+                template_id = data["result"][0]["sys_id"] if args.custom else data["result"][0]["sys_id"]["value"]
+                print("TEMPLATE_ID=" + template_id)
                 print("TEMPLATE_NAME=\"" + args.name + "\"")
                 print(
                     f"TEMPLATE_LINK={snow_url}/now/nav/ui/classic/params/target/std_change_record_producer.do?sys_id={template_id}")
