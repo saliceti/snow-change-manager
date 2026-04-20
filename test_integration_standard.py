@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 import json
 
+
 class TestSnowChangeLifecycle(unittest.TestCase):
     """
     Integration test for ServiceNow change management CLI.
@@ -15,32 +16,47 @@ class TestSnowChangeLifecycle(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Verify required environment variables are set."""
+        """Verify required test inputs are set."""
         cls.snow_host = os.environ.get("SNOW_HOST")
         cls.snow_user = os.environ.get("SNOW_USER")
         cls.snow_password = os.environ.get("SNOW_PASSWORD")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
-        cls.change_sys_id = None
+        cls.change_number = None
 
         missing_vars = []
-        for var in ["SNOW_HOST", "SNOW_USER", "SNOW_PASSWORD", "SNOW_STANDARD_CHANGE"]:
+        for var in [
+            "SNOW_HOST",
+            "SNOW_USER",
+            "SNOW_PASSWORD",
+                "SNOW_STANDARD_CHANGE"]:
             if not os.environ.get(var):
                 missing_vars.append(var)
 
         if missing_vars:
-            raise RuntimeError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise RuntimeError(
+                f"Missing required environment variables: {
+                    ', '.join(missing_vars)}")
 
     def setUp(self):
         """Reset state for each test."""
-        self.change_sys_id = None
-        self.cli_script = os.path.join(os.path.dirname(__file__), "snow_change_manager.py")
+        self.change_number = None
+        self.cli_script = os.path.join(
+            os.path.dirname(__file__),
+            "snow_change_manager.py")
 
     def run_cli(self, *args):
         """
         Execute the CLI with given arguments.
         Returns (returncode, stdout, stderr).
         """
-        cmd = [sys.executable, self.cli_script] + list(args)
+        cmd = [
+            sys.executable,
+            self.cli_script,
+            "--auth", "password",
+            "--snow-host", self.snow_host,
+            "--snow-user", self.snow_user,
+            "--snow-password", self.snow_password,
+        ] + list(args)
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode, result.stdout, result.stderr
 
@@ -62,139 +78,128 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             "--short-description", f"Integration Test Change on {now}"
         )
 
-        self.assertEqual(returncode, 0, f"CLI failed: {stderr}\nOutput:\n{stdout}")
+        self.assertEqual(
+            returncode,
+            0,
+            f"CLI failed: {stderr}\nOutput:\n{stdout}")
         output = self.parse_cli_output(stdout)
 
-        # Store sys_id for subsequent tests
-        self.change_sys_id = output["CHANGE_SYS_ID"]
-        self.__class__.change_sys_id = self.change_sys_id
-
+        # Store change number for subsequent tests
+        self.change_number = output["CHANGE_NUMBER"]
+        self.__class__.change_number = self.change_number
 
         # Verify via GET with --json
         returncode, stdout, stderr = self.run_cli(
             "--json",
             "get",
-            "--sys-id", self.change_sys_id,
+            "--number", self.change_number,
         )
         self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
         data = json.loads(stdout)
-        self.assertEqual(data["result"]["sys_id"]["value"], output["CHANGE_SYS_ID"])
-        self.assertEqual(data["result"]["number"]["value"], output['CHANGE_NUMBER'])
-        self.assertEqual(data["result"]["state"]["display_value"], "Scheduled")
 
-        print(f"\n✓ Created change: {output['CHANGE_NUMBER']} ({self.change_sys_id}) with state: Scheduled")
+        self.assertEqual(
+            data["result"][0]["sys_id"]["value"],
+            output["CHANGE_SYS_ID"])
+        self.assertEqual(
+            data["result"][0]["number"]["value"],
+            output['CHANGE_NUMBER'])
+        self.assertEqual(data["result"][0]["state"]
+                         ["display_value"], "Scheduled")
+
+        print(
+            f"\n✓ Created change: {
+                output['CHANGE_NUMBER']} ({
+                self.change_number}) with state: Scheduled")
 
     def test_02_update_to_implement(self):
         """Test: Update change state to Implement."""
-        change_sys_id = self.__class__.change_sys_id
+        change_number = self.__class__.change_number
 
-        self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
-            "update",
-            "--sys-id", change_sys_id,
-            "--state", "Implement"
+            "implement",
+            "--number", change_number
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
 
-
         # Verify via GET with --json
         returncode, stdout, stderr = self.run_cli(
             "--json",
             "get",
-            "--sys-id", change_sys_id,
+            "--number", change_number,
         )
         self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
         data = json.loads(stdout)
-        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
-        self.assertEqual(data["result"]["state"]["display_value"], "Implement")
+        self.assertEqual(data["result"][0]["number"]["value"], change_number)
+        self.assertEqual(data["result"][0]["state"]
+                         ["display_value"], "Implement")
 
         print(f"✓ Updated change to Implement")
 
     def test_03_update_to_review(self):
         """Test: Update change state to Review."""
-        change_sys_id = self.__class__.change_sys_id
-        self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
+        change_number = self.__class__.change_number
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
 
         returncode, stdout, stderr = self.run_cli(
-            "update",
-            "--sys-id", change_sys_id,
-            "--state", "Review"
-        )
-
-        self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-
-        # Verify via GET with --json
-        returncode, stdout, stderr = self.run_cli(
-            "--json",
-            "get",
-            "--sys-id", change_sys_id,
-        )
-        self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
-        data = json.loads(stdout)
-        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
-        self.assertEqual(data["result"]["state"]["display_value"], "Review")
-
-        print(f"✓ Updated change to Review")
-
-    def test_04_close_change_successful(self):
-        """Test: Close change with result=successful."""
-        change_sys_id = self.__class__.change_sys_id
-        self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
-
-        returncode, stdout, stderr = self.run_cli(
-            "update",
-            "--sys-id", change_sys_id,
-            "--state", "Closed",
+            "review",
+            "--number", change_number,
             "--result", "successful"
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
 
-        print(f"✓ Closed change successfully")
-
         # Verify via GET with --json
         returncode, stdout, stderr = self.run_cli(
             "--json",
             "get",
-            "--sys-id", change_sys_id,
+            "--number", change_number,
         )
         self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
         data = json.loads(stdout)
-        self.assertEqual(data["result"]["sys_id"]["value"], change_sys_id)
-        self.assertEqual(data["result"]["state"]["display_value"], "Closed")
-        self.assertEqual(data["result"]["close_code"]["value"], "successful")
+        self.assertEqual(data["result"][0]["number"]["value"], change_number)
+        self.assertEqual(data["result"][0]["state"]["display_value"], "Review")
 
-    def test_05_get_change_final_state(self):
-        """Test: Retrieve final change state via GET."""
-        change_sys_id = self.__class__.change_sys_id
-        self.assertIsNotNone(change_sys_id, "change_sys_id not set from test_01_create_change")
+        print(f"✓ Updated change to Review")
 
-        # Verify via GET standard output
+    def test_04_post_work_note(self):
+        """Test: Post work note to change."""
+        change_number = self.__class__.change_number
+        self.assertIsNotNone(
+            change_number,
+            "change_number not set from test_01_create_change")
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         returncode, stdout, stderr = self.run_cli(
-            "get",
-            "--sys-id", change_sys_id
+            "post-work-note",
+            "--number", change_number,
+            "--text", f"Test new work note on {now}"
         )
 
         self.assertEqual(returncode, 0, f"CLI failed: {stderr}")
-        output = self.parse_cli_output(stdout)
-
-        self.assertIn("CHANGE_STATE", output, "CHANGE_STATE not in response")
-        self.assertEqual(output["CHANGE_STATE"], "Closed", f"Expected final state 'Closed', got '{output['CHANGE_STATE']}'")
 
         # Verify via GET with --json
         returncode, stdout, stderr = self.run_cli(
             "--json",
             "get",
-            "--sys-id", change_sys_id,
+            "--number", change_number,
         )
         self.assertEqual(returncode, 0, f"GET verification failed: {stderr}")
         data = json.loads(stdout)
-        self.assertEqual(data["result"]["state"]["display_value"], "Closed")
-        self.assertEqual(data["result"]["close_code"]["value"], "successful")
+        self.assertEqual(data["result"][0]["number"]["value"], change_number)
+        self.assertIn(
+            f"Test new work note on {now}",
+            data["result"][0]["comments_and_work_notes"]['display_value'])
 
-        print(f"✓ Verified final change state is Closed")
+        print(f"✓ Posted work note")
+
 
 if __name__ == "__main__":
     # Create a test suite with tests in order, stopping on first failure
@@ -205,8 +210,7 @@ if __name__ == "__main__":
     suite.addTest(TestSnowChangeLifecycle('test_01_create_change'))
     suite.addTest(TestSnowChangeLifecycle('test_02_update_to_implement'))
     suite.addTest(TestSnowChangeLifecycle('test_03_update_to_review'))
-    suite.addTest(TestSnowChangeLifecycle('test_04_close_change_successful'))
-    suite.addTest(TestSnowChangeLifecycle('test_05_get_change_final_state'))
+    suite.addTest(TestSnowChangeLifecycle('test_04_post_work_note'))
 
     # Run with stop on first failure
     runner = unittest.TextTestRunner(verbosity=2, failfast=True)
@@ -214,5 +218,3 @@ if __name__ == "__main__":
 
     # Exit with appropriate code
     sys.exit(0 if result.wasSuccessful() else 1)
-
-# TEST123

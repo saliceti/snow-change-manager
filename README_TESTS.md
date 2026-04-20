@@ -6,10 +6,11 @@ The integration tests require:
 - A ServiceNow instance (dev/test environment recommended, NOT production)
 - Valid ServiceNow credentials
 - A standard change template sys_id. The template must have an assignment group set.
+- The CLI auth mode is explicit; integration tests use --auth password plus explicit ServiceNow flags
 
-## Environment Variables
+## Test Inputs
 
-Set the following environment variables before running tests:
+The CLI takes ServiceNow connection details as command line arguments. The integration test reads the values below from the environment so it can pass them through consistently:
 
 ```bash
 export SNOW_HOST="your-instance.service-now.com"
@@ -93,9 +94,10 @@ echo $SNOW_HOST $SNOW_USER $SNOW_PASSWORD $SNOW_STANDARD_CHANGE
 
 ### Authentication Failed (401/403)
 If the CLI returns `401 Unauthorized`:
-- Verify SNOW_USER and SNOW_PASSWORD are correct
+- Verify the values passed to `--snow-user` and `--snow-password` are correct
 - Check that the user has API access in ServiceNow
 - Verify Basic auth is enabled in your ServiceNow instance
+- Ensure commands are executed with `--auth password --snow-host ... --snow-user ... --snow-password ...` when using username/password
 
 ### Change Template Not Found (404)
 If the CLI returns `404 Not Found`:
