@@ -56,7 +56,11 @@ def build_snow_args() -> list[str]:
 
     custom = os.environ.get("SNOW_CUSTOM")
     if custom == "true":
-        snow_args.extend(["--custom"])
+        snow_args.extend([
+            "--custom",
+            "--snow-profile",
+            os.environ["SNOW_PROFILE"]
+        ])
 
     if snow_auth == "password":
         snow_args.extend([
@@ -81,7 +85,6 @@ def build_snow_args() -> list[str]:
 def run_snow_command(
         command_args: list[str],
         capture_output: bool = False) -> subprocess.CompletedProcess[str]:
-    print(f"./snow_change_manager.py {build_snow_args()} {command_args}")
     return subprocess.run(
         ["./snow_change_manager.py", *build_snow_args(), *command_args],
         capture_output=capture_output,
