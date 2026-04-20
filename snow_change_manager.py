@@ -99,19 +99,19 @@ def validate_cli_arguments(parser, args):
 
     missing = []
 
-    if not args.snow_host:
+    if not args.snow_host or not args.snow_host.strip():
         missing.append("--snow-host")
 
     if args.auth == "password":
-        if not args.snow_user:
+        if not args.snow_user or not args.snow_user.strip():
             missing.append("--snow-user")
-        if not args.snow_password:
+        if not args.snow_password or not args.snow_password.strip():
             missing.append("--snow-password")
 
     if args.auth == "oauth":
-        if not args.client_id:
+        if not args.client_id or not args.client_id.strip():
             missing.append("--client-id")
-        if not args.client_secret:
+        if not args.client_secret or not args.client_secret.strip():
             missing.append("--client-secret")
 
     if args.custom and not args.profile:
