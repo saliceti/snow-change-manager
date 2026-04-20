@@ -30,11 +30,10 @@ class TestCliEnvironmentValidation(unittest.TestCase):
         self.assertIn("--snow-password", result.stdout)
         self.assertIn("--snow-client-id", result.stdout)
         self.assertIn("--snow-client-secret", result.stdout)
+        self.assertIn("--snow-profile", result.stdout)
         self.assertIn("--custom", result.stdout)
-        self.assertIn("--profile", result.stdout)
         self.assertIn("--json", result.stdout)
         self.assertIn("--verbose", result.stdout)
-        self.assertIn("--profile", result.stdout)
 
     def test_missing_password_required_arguments_are_reported(self):
         result = self.run_cli(
@@ -100,7 +99,7 @@ class TestCliEnvironmentValidation(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(
-            "Missing required command line argument(s): --profile",
+            "Missing required command line argument(s): --snow-profile",
             result.stderr)
 
 

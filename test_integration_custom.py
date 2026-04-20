@@ -21,7 +21,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
         cls.snow_client_id = os.environ.get("SNOW_CLIENT_ID")
         cls.snow_client_secret = os.environ.get("SNOW_CLIENT_SECRET")
         cls.snow_standard_change = os.environ.get("SNOW_STANDARD_CHANGE")
-        cls.profile = os.environ.get("PROFILE")
+        cls.snow_profile = os.environ.get("SNOW_PROFILE")
         cls.change_number = None
 
         missing_vars = []
@@ -30,7 +30,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             "SNOW_CLIENT_ID",
             "SNOW_CLIENT_SECRET",
             "SNOW_STANDARD_CHANGE",
-                "PROFILE"]:
+                "SNOW_PROFILE"]:
             if not os.environ.get(var):
                 missing_vars.append(var)
 
@@ -59,7 +59,7 @@ class TestSnowChangeLifecycle(unittest.TestCase):
             "--snow-client-id", self.snow_client_id,
             "--snow-client-secret", self.snow_client_secret,
             "--custom",
-            "--profile", self.profile,
+            "--snow-profile", self.snow_profile,
         ] + list(args)
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode, result.stdout, result.stderr

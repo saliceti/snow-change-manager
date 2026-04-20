@@ -45,19 +45,19 @@ DEFAULT_ROUTES = {
 CUSTOM_ROUTES = {
     "create": {
         "method": "POST",
-        "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{profile}/createStdChange/{template_id}"},
+        "path": "/api/x_nhsd_intstation/nhs_integration/std_change/{snow_profile}/createStdChange/{template_id}"},
     "get_by_number": {
         "method": "GET",
-        "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getChangeRequest/{number}"},
+        "path": "/api/x_nhsd_intstation/nhs_integration/record/{snow_profile}/getChangeRequest/{number}"},
     "get_template_id": {
         "method": "GET",
-        "path": "/api/x_nhsd_intstation/nhs_integration/record/{profile}/getStandardChgTemplateID"},
+        "path": "/api/x_nhsd_intstation/nhs_integration/record/{snow_profile}/getStandardChgTemplateID"},
     "post_work_note": {
         "method": "PUT",
-        "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
+        "path": "/api/x_nhsd_intstation/nhs_integration/{snow_profile}/updateStdChange/{number}"},
     "update": {
         "method": "PUT",
-        "path": "/api/x_nhsd_intstation/nhs_integration/{profile}/updateStdChange/{number}"},
+        "path": "/api/x_nhsd_intstation/nhs_integration/{snow_profile}/updateStdChange/{number}"},
 }
 
 # See
@@ -114,8 +114,8 @@ def validate_cli_arguments(parser, args):
         if not args.snow_client_secret or not args.snow_client_secret.strip():
             missing.append("--snow-client-secret")
 
-    if args.custom and not args.profile:
-        missing.append("--profile")
+    if args.custom and not args.snow_profile:
+        missing.append("--snow-profile")
 
     if missing:
         parser.error(
@@ -205,7 +205,7 @@ def get_datetime(minutes=0):
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
+def get_sys_id_if_required(snow_url, number, auth_header, custom, snow_profile):
     """
     Use the change number to retrieve the change sys_id.
     Required for the standard API endpoints.
@@ -215,7 +215,7 @@ def get_sys_id_if_required(snow_url, number, auth_header, custom, profile):
     sys_id = ""
     if not custom:
         status, data = get_by_number(
-            snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, profile=profile)
+            snow_url=snow_url, number=number, auth_header=auth_header, custom=custom, snow_profile=snow_profile)
         if status != 200:
             print(f"Error: Unexpected status code - {status}")
             sys.exit(1)
@@ -229,7 +229,7 @@ def create(
         auth_header,
         short_description,
         custom,
-        profile):
+    snow_profile):
     """
     Create a standard change from a template with a customised short description.
     It is scheduled immediately.
@@ -252,7 +252,7 @@ def create(
         custom,
         "create",
         template_id=snow_standard_change,
-        profile=profile,
+        snow_profile=snow_profile,
     )
     base_url = f"{snow_url}{path}"
     params = {
@@ -271,7 +271,7 @@ def create(
         return send_request(url, method, auth_header)
 
 
-def implement(snow_url, number, auth_header, custom, profile):
+def implement(snow_url, number, auth_header, custom, snow_profile):
     """
     Update an existing change identified by the change number. Update the state to "Implement".
 
@@ -290,15 +290,15 @@ def implement(snow_url, number, auth_header, custom, profile):
     """
 
     sys_id = get_sys_id_if_required(
-        snow_url, number, auth_header, custom, profile)
+        snow_url, number, auth_header, custom, snow_profile)
     method, path = resolve_endpoint(
-        custom, "update", number=number, sys_id=sys_id, profile=profile)
+        custom, "update", number=number, sys_id=sys_id, snow_profile=snow_profile)
     url = f"{snow_url}{path}"
     fields = {"state": SNOW_STATES["Implement"]}
     return send_request(url, method, auth_header, payload=fields)
 
 
-def review(snow_url, number, auth_header, result, custom, profile):
+def review(snow_url, number, auth_header, result, custom, snow_profile):
     """
     Update an existing change state to review and set the closure information.
 
@@ -327,9 +327,9 @@ def review(snow_url, number, auth_header, result, custom, profile):
         close_notes = "Change did not complete successfully"
 
     sys_id = get_sys_id_if_required(
-        snow_url, number, auth_header, custom, profile)
+        snow_url, number, auth_header, custom, snow_profile)
     method, path = resolve_endpoint(
-        custom, "update", number=number, sys_id=sys_id, profile=profile)
+        custom, "update", number=number, sys_id=sys_id, snow_profile=snow_profile)
     url = f"{snow_url}{path}"
     fields = {
         "state": SNOW_STATES["Review"],
@@ -339,7 +339,7 @@ def review(snow_url, number, auth_header, result, custom, profile):
     return send_request(url, method, auth_header, payload=fields)
 
 
-def get_by_number(snow_url, number, auth_header, custom, profile):
+def get_by_number(snow_url, number, auth_header, custom, snow_profile):
     """
     Retrieve an existing change identified by number.
 
@@ -357,7 +357,7 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
     """
 
     method, path = resolve_endpoint(
-        custom, "get_by_number", profile=profile, number=number)
+        custom, "get_by_number", snow_profile=snow_profile, number=number)
     base_url = f"{snow_url}{path}"
     query = f"number={urllib.parse.quote(number)}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
@@ -367,7 +367,7 @@ def get_by_number(snow_url, number, auth_header, custom, profile):
         return send_request(url, method, auth_header)
 
 
-def get_template_id(snow_url, auth_header, name, custom, profile):
+def get_template_id(snow_url, auth_header, name, custom, snow_profile):
     """
     Retrieve a standard change template id by name.
 
@@ -384,14 +384,14 @@ def get_template_id(snow_url, auth_header, name, custom, profile):
     Returns (status, data) where data is parsed JSON (or raw body on parse error).
     """
 
-    method, path = resolve_endpoint(custom, "get_template_id", profile=profile)
+    method, path = resolve_endpoint(custom, "get_template_id", snow_profile=snow_profile)
     base_url = f"{snow_url}{path}"
     query = f"active=true^name={name}"
     url = base_url + "?" + urllib.parse.urlencode({"sysparm_query": query})
     return send_request(url, method, auth_header)
 
 
-def post_work_note(snow_url, number, auth_header, work_note, custom, profile):
+def post_work_note(snow_url, number, auth_header, work_note, custom, snow_profile):
     """
     Post a work note to a change. The work note is a non publicly visible comment.
     The change displays all works notes with their author, ordered by date.
@@ -411,9 +411,9 @@ def post_work_note(snow_url, number, auth_header, work_note, custom, profile):
     """
 
     sys_id = get_sys_id_if_required(
-        snow_url, number, auth_header, custom, profile)
+        snow_url, number, auth_header, custom, snow_profile)
     method, path = resolve_endpoint(
-        custom, "post_work_note", profile=profile, number=number, sys_id=sys_id)
+        custom, "post_work_note", snow_profile=snow_profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
     payload = {"work_notes": work_note}
     return send_request(url, method, auth_header, payload=payload)
@@ -446,7 +446,7 @@ def main():
         action="store_true",
         help="use custom API endpoint mappings")
     parser.add_argument(
-        "--profile",
+        "--snow-profile",
         help="profile ID (required with --custom)")
     parser.add_argument(
         "--json",
@@ -540,11 +540,11 @@ def main():
             case "create":
                 if args.verbose: print(f"Creating change from template {args.standard_change}...")
                 status, data = create(snow_url, args.standard_change,
-                                      auth_header, short_description=args.short_description, custom=args.custom, profile=args.profile)
+                                      auth_header, short_description=args.short_description, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "single_change"
             case "implement":
                 if args.verbose: print(f"Updating change {args.number} state to Implement...")
-                status, data = implement(snow_url, args.number, auth_header, custom=args.custom, profile=args.profile)
+                status, data = implement(snow_url, args.number, auth_header, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "single_change"
             case "review":
                 if args.verbose:
@@ -553,11 +553,11 @@ def main():
                             args.number} state to Review with result {
                             args.result}...")
                 status, data = review(snow_url, args.number, auth_header,
-                                      result=args.result, custom=args.custom, profile=args.profile)
+                                      result=args.result, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "single_change"
             case "get":
                 if args.verbose: print(f"Retrieving change with number {args.number}...")
-                status, data = get_by_number(snow_url, args.number, auth_header, profile=args.profile, custom=args.custom)
+                status, data = get_by_number(snow_url, args.number, auth_header, snow_profile=args.snow_profile, custom=args.custom)
                 if args.custom:
                     result_type = "single_change"
                 else:
@@ -569,12 +569,12 @@ def main():
                     auth_header,
                     name=args.name,
                     custom=args.custom,
-                    profile=args.profile,
+                    snow_profile=args.snow_profile,
                 )
                 result_type = "template_list"
             case "post-work-note":
                 if args.verbose: print(f"Posting work note...")
-                status, data = post_work_note(snow_url, args.number, auth_header, work_note=args.text, custom=args.custom, profile=args.profile)
+                status, data = post_work_note(snow_url, args.number, auth_header, work_note=args.text, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "table_item"
                 print(data)
             case _:
