@@ -46,7 +46,7 @@ jobs:
     needs: [unit-tests]
     environment: snow-standard-dev
     env:
-      SNOW_HOST: ${{ secrets.SNOW_HOST }}
+      SNOW_HOST: dev185914.service-now.com
       SNOW_USER: ${{ secrets.SNOW_USER }}
       SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
@@ -64,7 +64,7 @@ jobs:
     needs: [integration-tests-standard]
     environment: nhs-dev
     env:
-      SNOW_HOST: ${{ secrets.SNOW_HOST }}
+      SNOW_HOST: nhsdigitaldev.service-now.com
       SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
@@ -85,7 +85,7 @@ jobs:
       contents: write
     environment: nhs-dev
     env:
-      SNOW_HOST: ${{ secrets.SNOW_HOST }}
+      SNOW_HOST: nhsdigitaldev.service-now.com
       SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
@@ -177,13 +177,13 @@ jobs:
     needs: [create-snow-change]
     environment: nhs-dev
     env:
-      SNOW_HOST: ${{ secrets.SNOW_HOST }}
+      SNOW_HOST: nhsdigitaldev.service-now.com
       SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
       SNOW_AUTH: oauth
-
+      SNOW_CUSTOM: true
     outputs:
       CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
 
@@ -286,13 +286,13 @@ jobs:
     needs: [deploy]
     environment: nhs-dev
     env:
-      SNOW_HOST: ${{ secrets.SNOW_HOST }}
+      SNOW_HOST: nhsdigitaldev.service-now.com
       SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
       SNOW_AUTH: oauth
-
+      SNOW_CUSTOM: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
