@@ -138,7 +138,7 @@ jobs:
 
       - name: Create and schedule change
         id: create-change
-        shell: bash -eu {0}
+        shell: bash -euo pipefail {0}
         run: |
           ./snow_change_helper.py snow-command create \
             --short-description "$SHORT_DESCRIPTION" \
