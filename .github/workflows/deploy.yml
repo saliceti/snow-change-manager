@@ -90,6 +90,7 @@ jobs:
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
+      SNOW_AUTH: oauth
     outputs:
       CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
@@ -180,6 +181,7 @@ jobs:
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
+      SNOW_AUTH: oauth
 
     outputs:
       CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
@@ -288,6 +290,7 @@ jobs:
       SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
       SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
+      SNOW_AUTH: oauth
 
     steps:
       - name: Checkout code
