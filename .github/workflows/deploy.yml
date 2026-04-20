@@ -124,7 +124,7 @@ jobs:
 
           ./snow_change_helper.py snow-command --verbose post-work-note \
             --number "$CHANGE_NUMBER" \
-            --work-note "[code]$CHANGE_HTML[/code]"
+            --text "[code]$CHANGE_HTML[/code]"
 
           echo "Change created successfully and scheduled immediately"
 
@@ -200,7 +200,7 @@ jobs:
 
           echo "$message"
 
-          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --work-note "$message
+          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
           Deployment log:
           ${{ steps.deploy-software.outputs.LOG}}"
         env:
@@ -240,7 +240,7 @@ jobs:
 
           echo "$message"
 
-          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --work-note "$message
+          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
           Smoke test log:
           ${{ steps.smoke-test.outputs.LOG}}"
         env:
