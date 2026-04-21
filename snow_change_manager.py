@@ -8,6 +8,7 @@ import urllib.error
 import sys
 import argparse
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 ARGS_DESCRIPTION = """
 Create or update ServiceNow standard changes
@@ -60,8 +61,7 @@ CUSTOM_ROUTES = {
         "path": "/api/x_nhsd_intstation/nhs_integration/{snow_profile}/updateStdChange/{number}"},
 }
 
-# See
-# https://www.servicenow.com/docs/r/it-service-management/change-management/c_ChangeStateModel.html
+# See https://www.servicenow.com/docs/r/it-service-management/change-management/c_ChangeStateModel.html
 SNOW_STATES = {
     "New": -5,
     "Scheduled": -2,
@@ -69,6 +69,8 @@ SNOW_STATES = {
     "Review": 0,
     "Closed": 3
 }
+
+LOCAL_TIMEZONE = ZoneInfo("Europe/London")
 
 
 def resolve_endpoint(custom, function_name, **params):
@@ -196,11 +198,12 @@ def send_request(url, method, auth_header, payload=None, extra_headers=None):
 
 def get_datetime(minutes=0):
     """
-    Generates the date/time string minutes into the future
+    Generates the date/time string minutes into the future.
+    The time zone must be specified because of variations of regions and DST.
     """
 
     delta = timedelta(minutes=minutes)
-    datetime_now = datetime.now()
+    datetime_now = datetime.now(tz=LOCAL_TIMEZONE)
     datetime_plus_delta = datetime_now + delta
     return datetime_plus_delta.strftime("%Y-%m-%d %H:%M:%S")
 
