@@ -38,7 +38,7 @@ jobs:
       - name: Run unit tests 1
         run: |
           echo Running unit tests 1...
-          sleep 3600
+          # sleep 3600
 
   integration-tests-standard:
     name: Run integration tests on standard ServiceNow developer instance
@@ -52,6 +52,10 @@ jobs:
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
 
     steps:
+      - name: Sleep
+        run: |
+          echo Sleep...
+          # sleep 3600
       - name: Checkout code
         uses: actions/checkout@v5
 
