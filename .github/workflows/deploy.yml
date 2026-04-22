@@ -165,9 +165,12 @@ jobs:
       - name: Download test job log
         id: download-test-job-log
         run: |
-          ./snow_change_helper.py github-actions-logs --run-id ${{github.run_id}} --job "$TEST_JOB_NAME"
+          ./snow_change_helper.py github-actions-logs --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
         env:
           TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_ID: ${{github.run_id}}
 
       - name: Post test job log
         run: |
