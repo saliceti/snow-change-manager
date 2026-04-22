@@ -55,7 +55,7 @@ jobs:
       - name: Sleep
         run: |
           echo Sleep...
-          # sleep 3600
+          sleep 3600
       - name: Checkout code
         uses: actions/checkout@v5
 

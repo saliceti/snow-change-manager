@@ -164,10 +164,10 @@ def extract_pr_jira() -> None:
     write_output("jira_reference", jira_reference)
     write_output("jira_link", jira_link)
 
-def download_github_actions_log(run_id, logs_dir):
+def download_github_actions_log(run_id, job):
     api_url = (
         f"https://api.github.com/repos/{os.environ['REPO_OWNER']}/"
-        f"{os.environ['REPO_NAME']}/actions/runs/{run_id}/logs"
+        f"{os.environ['REPO_NAME']}/actions/runs/{run_id}/jobs"
     )
     request = urllib.request.Request(
         api_url,
@@ -178,28 +178,34 @@ def download_github_actions_log(run_id, logs_dir):
         },
     )
     with urllib.request.urlopen(request) as response:
-        logs_zip = response.read()
+        jobs_string = response.read()
 
-    with zipfile.ZipFile(io.BytesIO(logs_zip)) as zip_file:
-        zip_file.extractall(logs_dir)
+    jobs = json.loads(jobs_string)["jobs"]
+    job_id = [job["id"] for job in jobs if job["name"] == job][0]
 
-
-def read_github_actions_job_log(logs_dir, job):
-    job_file_list = glob.glob(f"{logs_dir}/*{job}.txt")
-    if not job_file_list:
-        raise(ValueError(f"Log file not found for job: {job}"))
-
-    with open(job_file_list[0], "r") as jf:
-        return jf.read()
+    api_url = (
+        f"https://api.github.com/repos/{os.environ['REPO_OWNER']}/"
+        f"{os.environ['REPO_NAME']}/actions/jobs/{job_id}/logs"
+    )
+    request = urllib.request.Request(
+        api_url,
+        headers={
+            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2026-03-10",
+        },
+    )
+    with urllib.request.urlopen(request) as response:
+        return response.read()
 
 
 def github_actions_logs(run_id: str, job) -> None:
-    base_dir = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
-    logs_dir = os.path.join(base_dir, "github-actions-logs", str(run_id))
-    os.makedirs(logs_dir, exist_ok=True)
+    # base_dir = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
+    # logs_dir = os.path.join(base_dir, "github-actions-logs", str(run_id))
+    # os.makedirs(logs_dir, exist_ok=True)
 
-    logs_zip = download_github_actions_log(run_id, logs_dir)
-    job_log = read_github_actions_job_log(logs_zip, job)
+    job_log = download_github_actions_log(run_id, job)
+    # job_log = read_github_actions_job_log(logs_zip, job)
 
     write_multiline_output("job_log", job_log)
 
