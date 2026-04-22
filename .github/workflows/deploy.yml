@@ -165,7 +165,7 @@ jobs:
       - name: Download test job log
         id: download-test-job-log
         run: |
-          ./snow_change_helper.py --run-id ${{github.run_id}} --job "$TEST_JOB_NAME"
+          ./snow_change_helper.py github-actions-logs --run-id ${{github.run_id}} --job "$TEST_JOB_NAME"
         env:
           TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
 
