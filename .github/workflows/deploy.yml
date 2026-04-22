@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - job-logs
   workflow_dispatch:
     inputs:
       deployment_result:
@@ -160,6 +161,21 @@ jobs:
         env:
           SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
           CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+
+      - name: Download test job log
+        id: download-test-job-log
+        run: |
+          ./snow_change_helper.py --run-id ${{github.run_id}} --job "$TEST_JOB_NAME"
+        env:
+          TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
+
+      - name: Post test job log
+        run: |
+          ./snow_change_helper.py snow-command --verbose post-work-note \
+            --number "$CHANGE_NUMBER" \
+            --text "${{ steps.download-test-job-log.outputs.job_log }}"
+        env:
+          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
       - name: Add create change summary
         run: ./snow_change_helper.py add-create-change-summary
