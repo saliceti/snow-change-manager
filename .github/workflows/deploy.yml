@@ -166,7 +166,7 @@ jobs:
       - name: Download test job log
         id: download-test-job-log
         run: |
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME" > job.log
+          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.event.repository.name }}
@@ -174,15 +174,15 @@ jobs:
           RUN_ID: ${{github.run_id}}
           TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
 
-      - name: Post test job log
-        run: |
-          cat job.log
+      # - name: Post test job log
+      #   run: |
+      #     cat job.log
 
-          cat job.log | ./snow_change_helper.py snow-command --verbose post-work-note \
-            --number "$CHANGE_NUMBER" \
-            --stdin
-        env:
-          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
+      #     cat job.log | ./snow_change_helper.py snow-command --verbose post-work-note \
+      #       --number "$CHANGE_NUMBER" \
+      #       --stdin
+      #   env:
+      #     CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
   #     - name: Add create change summary
   #       run: ./snow_change_helper.py add-create-change-summary
