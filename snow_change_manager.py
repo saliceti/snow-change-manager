@@ -584,7 +584,6 @@ def main():
                 work_note = sys.stdin.read() if args.stdin else args.text
                 status, data = post_work_note(snow_url, args.number, auth_header, work_note=work_note, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "table_item"
-                print(data)
             case _:
                 parser.error("unknown command")
 
