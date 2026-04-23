@@ -176,156 +176,158 @@ jobs:
 
       - name: Post test job log
         run: |
+          cat job.log
+
           cat job.log | ./snow_change_helper.py snow-command --verbose post-work-note \
             --number "$CHANGE_NUMBER" \
             --stdin
         env:
           CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
-      - name: Add create change summary
-        run: ./snow_change_helper.py add-create-change-summary
-        env:
-          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
-          CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
-          CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
-          CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
-          SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
+  #     - name: Add create change summary
+  #       run: ./snow_change_helper.py add-create-change-summary
+  #       env:
+  #         CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
+  #         CHANGE_LINK: ${{ steps.create-change.outputs.CHANGE_LINK }}
+  #         CHANGE_SYS_ID: ${{ steps.create-change.outputs.CHANGE_SYS_ID }}
+  #         CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+  #         SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
 
-  deploy:
-    name: Deploy to production
-    runs-on: ubuntu-latest
-    needs: [create-snow-change]
-    environment: nhs-dev
-    env:
-      SNOW_HOST: nhsdigitaldev.service-now.com
-      SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
-      SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
-      SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
-      SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
-      SNOW_AUTH: oauth
-      SNOW_CUSTOM: true
-    outputs:
-      CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
+  # deploy:
+  #   name: Deploy to production
+  #   runs-on: ubuntu-latest
+  #   needs: [create-snow-change]
+  #   environment: nhs-dev
+  #   env:
+  #     SNOW_HOST: nhsdigitaldev.service-now.com
+  #     SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
+  #     SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
+  #     SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
+  #     SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
+  #     SNOW_AUTH: oauth
+  #     SNOW_CUSTOM: true
+  #   outputs:
+  #     CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v5
 
-      - name: Start change
-        run: |
-          ./snow_change_helper.py snow-command --verbose implement --number "$CHANGE_NUMBER"
+  #     - name: Start change
+  #       run: |
+  #         ./snow_change_helper.py snow-command --verbose implement --number "$CHANGE_NUMBER"
 
-          echo Change started successfully. Ready for deployment.
-        env:
-          CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
+  #         echo Change started successfully. Ready for deployment.
+  #       env:
+  #         CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
 
-      - name: Deploy software
-        id: deploy-software
-        run: |
-          echo Deploying software... | tee -a deployment.log
-          sleep 5
+  #     - name: Deploy software
+  #       id: deploy-software
+  #       run: |
+  #         echo Deploying software... | tee -a deployment.log
+  #         sleep 5
 
-          if [[ "${{ inputs.deployment_result }}" = "fail" ]]; then
-            echo Error: Deployment has failed. | tee -a deployment.log
-            {
-              echo 'LOG<<EOF'
-              cat deployment.log
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
+  #         if [[ "${{ inputs.deployment_result }}" = "fail" ]]; then
+  #           echo Error: Deployment has failed. | tee -a deployment.log
+  #           {
+  #             echo 'LOG<<EOF'
+  #             cat deployment.log
+  #             echo EOF
+  #           } >> "$GITHUB_OUTPUT"
+  #           exit 1
+  #         fi
 
-          echo Deployed software successfully | tee -a deployment.log
-          {
-            echo 'LOG<<EOF'
-            cat deployment.log
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
+  #         echo Deployed software successfully | tee -a deployment.log
+  #         {
+  #           echo 'LOG<<EOF'
+  #           cat deployment.log
+  #           echo EOF
+  #         } >> "$GITHUB_OUTPUT"
 
-      - name: Post deployment log
-        if: always()
-        run: |
-          if [[ "${{ job.status }}" != "success" ]]; then
-            message="The deployment was unsuccessul"
-          else
-            message="The deployment was successul"
-          fi
+  #     - name: Post deployment log
+  #       if: always()
+  #       run: |
+  #         if [[ "${{ job.status }}" != "success" ]]; then
+  #           message="The deployment was unsuccessul"
+  #         else
+  #           message="The deployment was successul"
+  #         fi
 
-          echo "$message"
+  #         echo "$message"
 
-          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
-          Deployment log:
-          ${{ steps.deploy-software.outputs.LOG}}"
-        env:
-          CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
+  #         ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
+  #         Deployment log:
+  #         ${{ steps.deploy-software.outputs.LOG}}"
+  #       env:
+  #         CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
 
-      - name: Run smoke test
-        id: smoke-test
-        run: |
-          echo Testing the deployment... | tee -a test.log
-          sleep 5
+  #     - name: Run smoke test
+  #       id: smoke-test
+  #       run: |
+  #         echo Testing the deployment... | tee -a test.log
+  #         sleep 5
 
-          if [[ "${{ inputs.test_result }}" = "fail" ]]; then
-            echo Error: The smoke tests 1,2,3 have failed. | tee -a test.log
-            {
-              echo 'LOG<<EOF'
-              cat test.log
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
+  #         if [[ "${{ inputs.test_result }}" = "fail" ]]; then
+  #           echo Error: The smoke tests 1,2,3 have failed. | tee -a test.log
+  #           {
+  #             echo 'LOG<<EOF'
+  #             cat test.log
+  #             echo EOF
+  #           } >> "$GITHUB_OUTPUT"
+  #           exit 1
+  #         fi
 
-          echo The smoke tests 1,2,3 were successful | tee -a test.log
-          {
-            echo 'LOG<<EOF'
-            cat test.log
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
+  #         echo The smoke tests 1,2,3 were successful | tee -a test.log
+  #         {
+  #           echo 'LOG<<EOF'
+  #           cat test.log
+  #           echo EOF
+  #         } >> "$GITHUB_OUTPUT"
 
-      - name: Post smoke test log
-        if: always() && steps.deploy-software.outcome == 'success'
-        run: |
-          if [[ "${{ job.status }}" != "success" ]]; then
-            message="The test was unsuccessul"
-          else
-            message="The test was successul"
-          fi
+  #     - name: Post smoke test log
+  #       if: always() && steps.deploy-software.outcome == 'success'
+  #       run: |
+  #         if [[ "${{ job.status }}" != "success" ]]; then
+  #           message="The test was unsuccessul"
+  #         else
+  #           message="The test was successul"
+  #         fi
 
-          echo "$message"
+  #         echo "$message"
 
-          ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
-          Smoke test log:
-          ${{ steps.smoke-test.outputs.LOG}}"
-        env:
-          CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
+  #         ./snow_change_helper.py snow-command --verbose post-work-note --number "$CHANGE_NUMBER" --text "$message
+  #         Smoke test log:
+  #         ${{ steps.smoke-test.outputs.LOG}}"
+  #       env:
+  #         CHANGE_NUMBER: ${{ needs.create-snow-change.outputs.CHANGE_NUMBER }}
 
-  review-change:
-    name: Progress ServiceNow change to Review
-    if: always()
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    environment: nhs-dev
-    env:
-      SNOW_HOST: nhsdigitaldev.service-now.com
-      SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
-      SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
-      SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
-      SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
-      SNOW_AUTH: oauth
-      SNOW_CUSTOM: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-      - name: Progress to Review
-        run: |
-          if [[ "${{ needs.deploy.result }}" = "success" ]]; then
-            result=successful
-          else
-            result=unsuccessful
-          fi
+  # review-change:
+  #   name: Progress ServiceNow change to Review
+  #   if: always()
+  #   runs-on: ubuntu-latest
+  #   needs: [deploy]
+  #   environment: nhs-dev
+  #   env:
+  #     SNOW_HOST: nhsdigitaldev.service-now.com
+  #     SNOW_CLIENT_ID: ${{ secrets.SNOW_CLIENT_ID }}
+  #     SNOW_CLIENT_SECRET: ${{ secrets.SNOW_CLIENT_SECRET }}
+  #     SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
+  #     SNOW_PROFILE: ${{ secrets.SNOW_PROFILE }}
+  #     SNOW_AUTH: oauth
+  #     SNOW_CUSTOM: true
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v5
+  #     - name: Progress to Review
+  #       run: |
+  #         if [[ "${{ needs.deploy.result }}" = "success" ]]; then
+  #           result=successful
+  #         else
+  #           result=unsuccessful
+  #         fi
 
-          ./snow_change_helper.py snow-command --verbose review --number "$CHANGE_NUMBER" --result "$result"
+  #         ./snow_change_helper.py snow-command --verbose review --number "$CHANGE_NUMBER" --result "$result"
 
-          echo Change progressed to review with result: $result
-        env:
-          CHANGE_NUMBER: ${{ needs.deploy.outputs.CHANGE_NUMBER }}
+  #         echo Change progressed to review with result: $result
+  #       env:
+  #         CHANGE_NUMBER: ${{ needs.deploy.outputs.CHANGE_NUMBER }}
