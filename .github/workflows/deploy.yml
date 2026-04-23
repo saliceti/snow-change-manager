@@ -100,68 +100,68 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Bump version and push tag
-        uses: anothrNick/github-tag-action@v1
-        id: tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_PREFIX: v
+      # - name: Bump version and push tag
+      #   uses: anothrNick/github-tag-action@v1
+      #   id: tag
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TAG_PREFIX: v
 
-      - name: List commits
-        id: commit-list
-        run: ./snow_change_helper.py list-commits
-        env:
-          COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
+      # - name: List commits
+      #   id: commit-list
+      #   run: ./snow_change_helper.py list-commits
+      #   env:
+      #     COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
 
-      - name: Extract PR and Jira info
-        if: github.event_name == 'push'
-        id: extract-pr-jira
-        run: ./snow_change_helper.py extract-pr-jira
-        env:
-          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          REPO_HTML_URL: ${{ github.event.repository.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Extract PR and Jira info
+      #   if: github.event_name == 'push'
+      #   id: extract-pr-jira
+      #   run: ./snow_change_helper.py extract-pr-jira
+      #   env:
+      #     HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      #     REPO_OWNER: ${{ github.repository_owner }}
+      #     REPO_NAME: ${{ github.event.repository.name }}
+      #     REPO_HTML_URL: ${{ github.event.repository.html_url }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build change HTML
-        id: build-change-html
-        run: ./snow_change_helper.py build-change-html
-        env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
-          PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
-          PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
-          JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
-          JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
-          COMMITS_HTML: ${{ steps.commit-list.outputs.COMMITS_HTML }}
-          WORKFLOW_RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_ACTOR: ${{ github.actor }}
+      # - name: Build change HTML
+      #   id: build-change-html
+      #   run: ./snow_change_helper.py build-change-html
+      #   env:
+      #     RELEASE_VERSION: ${{ steps.tag.outputs.tag }}
+      #     PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+      #     PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+      #     JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+      #     JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+      #     COMMITS_HTML: ${{ steps.commit-list.outputs.COMMITS_HTML }}
+      #     WORKFLOW_RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      #     GITHUB_SHA: ${{ github.sha }}
+      #     GITHUB_ACTOR: ${{ github.actor }}
 
-      - name: Create and schedule change
-        id: create-change
-        shell: bash -euo pipefail {0}
-        run: |
-          ./snow_change_helper.py snow-command create \
-            --short-description "$SHORT_DESCRIPTION" \
-            --standard-change "$SNOW_STANDARD_CHANGE" | tee create_output.env
+      # - name: Create and schedule change
+      #   id: create-change
+      #   shell: bash -euo pipefail {0}
+      #   run: |
+      #     ./snow_change_helper.py snow-command create \
+      #       --short-description "$SHORT_DESCRIPTION" \
+      #       --standard-change "$SNOW_STANDARD_CHANGE" | tee create_output.env
 
-          source create_output.env
+      #     source create_output.env
 
-          ./snow_change_helper.py snow-command --verbose post-work-note \
-            --number "$CHANGE_NUMBER" \
-            --text "[code]$CHANGE_HTML[/code]"
+      #     ./snow_change_helper.py snow-command --verbose post-work-note \
+      #       --number "$CHANGE_NUMBER" \
+      #       --text "[code]$CHANGE_HTML[/code]"
 
-          echo "Change created successfully and scheduled immediately"
+      #     echo "Change created successfully and scheduled immediately"
 
-          {
-            echo "CHANGE_SYS_ID=$CHANGE_SYS_ID"
-            echo "CHANGE_NUMBER=$CHANGE_NUMBER"
-            echo "CHANGE_LINK=$CHANGE_LINK"
-          } >> "$GITHUB_OUTPUT"
-        env:
-          SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
-          CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+      #     {
+      #       echo "CHANGE_SYS_ID=$CHANGE_SYS_ID"
+      #       echo "CHANGE_NUMBER=$CHANGE_NUMBER"
+      #       echo "CHANGE_LINK=$CHANGE_LINK"
+      #     } >> "$GITHUB_OUTPUT"
+      #   env:
+      #     SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
+      #     CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
 
       - name: Download test job log
         id: download-test-job-log
