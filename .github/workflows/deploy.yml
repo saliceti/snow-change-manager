@@ -166,30 +166,7 @@ jobs:
       - name: Download test job log
         id: download-test-job-log
         run: |
-          echo 1
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 2
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 3
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 4
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 5
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 6
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 7
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
-          echo 8
-          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
-          sleep 15
+          ./snow_change_helper.py --output-mode stdout github-actions-logs --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.event.repository.name }}
