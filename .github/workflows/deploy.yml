@@ -52,10 +52,6 @@ jobs:
       SNOW_STANDARD_CHANGE: ${{ secrets.SNOW_STANDARD_CHANGE }}
 
     steps:
-      - name: Sleep
-        run: |
-          echo Sleep...
-          sleep 3600
       - name: Checkout code
         uses: actions/checkout@v5
 
@@ -87,6 +83,7 @@ jobs:
     needs: [integration-tests-nhs-dev]
     permissions:
       contents: write
+      actions: read
     environment: nhs-dev
     env:
       SNOW_HOST: nhsdigitaldev.service-now.com

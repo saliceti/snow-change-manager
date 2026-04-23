@@ -8,8 +8,8 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.request
-import zipfile
 
 
 OUTPUT_MODE = "github"
@@ -46,6 +46,41 @@ def write_summary(value: str) -> None:
     else:
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
             fh.write(value)
+
+
+def _github_headers() -> dict[str, str]:
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "Missing GitHub token. Set GITHUB_TOKEN (or GH_TOKEN) to call GitHub API endpoints."
+        )
+
+    return {
+        "Authorization": f"Bearer {token.strip()}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2026-03-10",
+    }
+
+# Used to stop following redirects
+class _NoRedirect302(urllib.request.HTTPRedirectHandler):
+    def http_error_302(self, req, fp, code, msg, headers):
+        return None
+
+
+def _download_url_handling_github_redirects(api_url: str) -> bytes:
+    request = urllib.request.Request(api_url, headers=_github_headers())
+    no_redirect_opener = urllib.request.build_opener(_NoRedirect302)
+
+    try:
+        with no_redirect_opener.open(request) as response:
+            return response.read()
+    # 302 redirects are caught and we expect an HTTPError
+    except urllib.error.HTTPError as err:
+        redirect_url = err.headers.get("Location")
+        redirect_request = urllib.request.Request(redirect_url)
+
+        with urllib.request.urlopen(redirect_request) as response:
+            return response.read()
 
 
 def build_snow_args() -> list[str]:
@@ -136,11 +171,7 @@ def extract_pr_jira() -> None:
         )
         request = urllib.request.Request(
             api_url,
-            headers={
-                "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2026-03-10",
-            },
+            headers = _github_headers(),
         )
         with urllib.request.urlopen(request) as response:
             pr = json.loads(response.read())
@@ -164,48 +195,39 @@ def extract_pr_jira() -> None:
     write_output("jira_reference", jira_reference)
     write_output("jira_link", jira_link)
 
-def download_github_actions_log(run_id, job):
+def _get_job_id(run_id, job):
     api_url = (
         f"https://api.github.com/repos/{os.environ['REPO_OWNER']}/"
         f"{os.environ['REPO_NAME']}/actions/runs/{run_id}/jobs"
     )
-    request = urllib.request.Request(
-        api_url,
-        headers={
-            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-        },
-    )
+    request = urllib.request.Request(api_url, headers=_github_headers())
     with urllib.request.urlopen(request) as response:
         jobs_string = response.read()
 
     jobs = json.loads(jobs_string)["jobs"]
-    job_id = [job["id"] for job in jobs if job["name"] == job][0]
+    matching_job_ids = [j["id"] for j in jobs if j["name"] == job]
+    if not matching_job_ids:
+        available_jobs = ", ".join(j["name"] for j in jobs)
+        raise RuntimeError(
+            f"Job '{job}' not found in run {run_id}. Available jobs: {available_jobs}"
+        )
+    job_id = matching_job_ids[0]
+
+    return job_id
+
+
+def github_actions_logs(run_id: str, job) -> None:
+    job_id = _get_job_id(run_id, job)
 
     api_url = (
         f"https://api.github.com/repos/{os.environ['REPO_OWNER']}/"
         f"{os.environ['REPO_NAME']}/actions/jobs/{job_id}/logs"
     )
-    request = urllib.request.Request(
-        api_url,
-        headers={
-            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-        },
-    )
-    with urllib.request.urlopen(request) as response:
-        return response.read()
 
-
-def github_actions_logs(run_id: str, job) -> None:
-    # base_dir = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
-    # logs_dir = os.path.join(base_dir, "github-actions-logs", str(run_id))
-    # os.makedirs(logs_dir, exist_ok=True)
-
-    job_log = download_github_actions_log(run_id, job)
-    # job_log = read_github_actions_job_log(logs_zip, job)
+    # The request to Github API is a redirect 302
+    # If urllib follows the redirect, the second request returns 401
+    # We must handle the redirect explicitly
+    job_log = _download_url_handling_github_redirects(api_url).decode("utf-8")
 
     write_multiline_output("job_log", job_log)
 
@@ -290,7 +312,6 @@ def main(argv: list[str] | None = None) -> None:
     "--job",
     required=True,
     help="job name (required)")
-
 
     args, extra = parser.parse_known_args(argv)
     configure_output_mode(args.output_mode)
