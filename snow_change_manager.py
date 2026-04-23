@@ -72,6 +72,7 @@ SNOW_STATES = {
 
 LOCAL_TIMEZONE = ZoneInfo("Europe/London")
 
+NHS_WORK_NOTE_SIZE = 4000
 
 def resolve_endpoint(custom, function_name, **params):
     """
@@ -418,8 +419,28 @@ def post_work_note(snow_url, number, auth_header, work_note, custom, snow_profil
     method, path = resolve_endpoint(
         custom, "post_work_note", snow_profile=snow_profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
-    payload = {"work_notes": work_note}
-    return send_request(url, method, auth_header, payload=payload)
+
+    # The NHS API is limited to 4000 characters per work note
+    # Keep 100 characters for additional text in each section
+    section_text_size = 100
+    chunk_size = NHS_WORK_NOTE_SIZE - section_text_size
+    chunks = [work_note[i:i + chunk_size]
+              for i in range(0, len(work_note), chunk_size)]
+    is_multipart = len(chunks) > 1
+
+    last_status = None
+    last_data = None
+    for i,chunk in enumerate(chunks):
+        if is_multipart:
+            section_text = f"Multipart message. Part {i+1}/{len(chunks)}:\n\n"
+        else:
+            section_text = ""
+        payload = {"work_notes": section_text + chunk}
+        last_status, last_data = send_request(url, method, auth_header, payload=payload)
+        if last_status != 200:
+            raise urllib.error.HTTPError(url, last_status, f"Error sending work note chunk {i+1}/{len(chunks)}")
+
+    return last_status, last_data
 
 
 def main():
@@ -521,10 +542,14 @@ def main():
         "--number",
         required=True,
         help="Change number on e.g CHG0030052 (required)")
-    sp_post_work_note.add_argument(
+    post_work_note_text_group = sp_post_work_note.add_mutually_exclusive_group(required=True)
+    post_work_note_text_group.add_argument(
         "--text",
-        required=True,
-        help="work note text (required)")
+        help="work note text")
+    post_work_note_text_group.add_argument(
+        "--stdin",
+        action="store_true",
+        help="read work note text from standard input")
 
     args = parser.parse_args()
     validate_cli_arguments(parser, args)
@@ -577,9 +602,17 @@ def main():
                 result_type = "template_list"
             case "post-work-note":
                 if args.verbose: print(f"Posting work note...")
-                status, data = post_work_note(snow_url, args.number, auth_header, work_note=args.text, custom=args.custom, snow_profile=args.snow_profile)
+                if args.stdin:
+                    if sys.stdin.isatty():
+                        print("Enter multiline text for the work note\n"
+                        "End with a line containing only ^D (Type control-d)")
+                    work_note = sys.stdin.read()
+                else:
+                    work_note = args.text
+                if work_note.strip() == "":
+                    parser.error("The content for the work note cannot be empty")
+                status, data = post_work_note(snow_url, args.number, auth_header, work_note=work_note, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "table_item"
-                print(data)
             case _:
                 parser.error("unknown command")
 

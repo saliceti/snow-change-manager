@@ -37,7 +37,7 @@ jobs:
       - name: Run unit tests 1
         run: |
           echo Running unit tests 1...
-          # sleep 5
+          sleep 5
 
   integration-tests-standard:
     name: Run integration tests on standard ServiceNow developer instance
@@ -82,6 +82,7 @@ jobs:
     needs: [integration-tests-nhs-dev]
     permissions:
       contents: write
+      actions: read
     environment: nhs-dev
     env:
       SNOW_HOST: nhsdigitaldev.service-now.com
@@ -160,6 +161,25 @@ jobs:
         env:
           SHORT_DESCRIPTION: ${{ steps.build-change-html.outputs.SHORT_DESCRIPTION }}
           CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+
+      - name: Download test job log
+        id: download-test-job-log
+        run: |
+          ./snow_change_helper.py --output-mode stdout github-actions-logs --run-id "$RUN_ID" --job "$TEST_JOB_NAME" > job.log
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          RUN_ID: ${{ github.run_id }}
+          TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
+
+      - name: Post test job log
+        run: |
+          cat job.log | ./snow_change_helper.py snow-command --verbose post-work-note \
+            --number "$CHANGE_NUMBER" \
+            --stdin
+        env:
+          CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
       - name: Add create change summary
         run: ./snow_change_helper.py add-create-change-summary
