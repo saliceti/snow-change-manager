@@ -521,10 +521,14 @@ def main():
         "--number",
         required=True,
         help="Change number on e.g CHG0030052 (required)")
-    sp_post_work_note.add_argument(
+    post_work_note_text_group = sp_post_work_note.add_mutually_exclusive_group(required=True)
+    post_work_note_text_group.add_argument(
         "--text",
-        required=True,
-        help="work note text (required)")
+        help="work note text")
+    post_work_note_text_group.add_argument(
+        "--stdin",
+        action="store_true",
+        help="read work note text from standard input")
 
     args = parser.parse_args()
     validate_cli_arguments(parser, args)
@@ -577,7 +581,8 @@ def main():
                 result_type = "template_list"
             case "post-work-note":
                 if args.verbose: print(f"Posting work note...")
-                status, data = post_work_note(snow_url, args.number, auth_header, work_note=args.text, custom=args.custom, snow_profile=args.snow_profile)
+                work_note = sys.stdin.read() if args.stdin else args.text
+                status, data = post_work_note(snow_url, args.number, auth_header, work_note=work_note, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "table_item"
                 print(data)
             case _:
