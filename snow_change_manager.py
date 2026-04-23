@@ -438,7 +438,7 @@ def post_work_note(snow_url, number, auth_header, work_note, custom, snow_profil
         payload = {"work_notes": section_text + chunk}
         last_status, last_data = send_request(url, method, auth_header, payload=payload)
         if last_status != 200:
-            raise urllib.error.HTTPError(url, last_status, "Error sending work note chunk")
+            raise urllib.error.HTTPError(url, last_status, f"Error sending work note chunk {i+1}/{len(chunks)}")
 
     return last_status, last_data
 
