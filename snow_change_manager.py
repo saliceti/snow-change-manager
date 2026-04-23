@@ -581,7 +581,15 @@ def main():
                 result_type = "template_list"
             case "post-work-note":
                 if args.verbose: print(f"Posting work note...")
-                work_note = sys.stdin.read() if args.stdin else args.text
+                if args.stdin:
+                    if sys.stdin.isatty():
+                        print("Enter multiline text for the work note\n"
+                        "End with a line containing only ^D (Type control-d)")
+                    work_note = sys.stdin.read()
+                else:
+                    work_note = args.text
+                if work_note.strip() == "":
+                    parser.error("The content for the work note cannot be empty")
                 status, data = post_work_note(snow_url, args.number, auth_header, work_note=work_note, custom=args.custom, snow_profile=args.snow_profile)
                 result_type = "table_item"
             case _:
