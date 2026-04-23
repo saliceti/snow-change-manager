@@ -49,11 +49,7 @@ def write_summary(value: str) -> None:
 
 
 def _github_headers() -> dict[str, str]:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if not token:
-        raise RuntimeError(
-            "Missing GitHub token. Set GITHUB_TOKEN (or GH_TOKEN) to call GitHub API endpoints."
-        )
+    token = os.environ["GITHUB_TOKEN"]
 
     return {
         "Authorization": f"Bearer {token.strip()}",
@@ -61,7 +57,7 @@ def _github_headers() -> dict[str, str]:
         "X-GitHub-Api-Version": "2026-03-10",
     }
 
-# Used to stop following redirects
+# Used to stop following 302 redirects
 class _NoRedirect302(urllib.request.HTTPRedirectHandler):
     def http_error_302(self, req, fp, code, msg, headers):
         return None
@@ -207,13 +203,9 @@ def _get_job_id(run_id, job):
     jobs = json.loads(jobs_string)["jobs"]
     matching_job_ids = [j["id"] for j in jobs if j["name"] == job]
     if not matching_job_ids:
-        available_jobs = ", ".join(j["name"] for j in jobs)
-        raise RuntimeError(
-            f"Job '{job}' not found in run {run_id}. Available jobs: {available_jobs}"
-        )
-    job_id = matching_job_ids[0]
+        raise RuntimeError(f"Job '{job}' not found in run {run_id}")
 
-    return job_id
+    return matching_job_ids[0]
 
 
 def github_actions_logs(run_id: str, job) -> None:
@@ -229,6 +221,8 @@ def github_actions_logs(run_id: str, job) -> None:
     # We must handle the redirect explicitly
     job_log = _download_url_handling_github_redirects(api_url).decode("utf-8")
 
+    # We don't write to github output as it is printed when it is referenced then the workflow breaks
+    # Write to standard out and the script must redirect to file
     print(job_log)
 
 
@@ -304,14 +298,8 @@ def main(argv: list[str] | None = None) -> None:
     subparsers.add_parser("add-create-change-summary")
     subparsers.add_parser("snow-command")
     ga_logs = subparsers.add_parser("github-actions-logs")
-    ga_logs.add_argument(
-    "--run-id",
-    required=True,
-    help="workflow run id (required)")
-    ga_logs.add_argument(
-    "--job",
-    required=True,
-    help="job name (required)")
+    ga_logs.add_argument("--run-id", required=True, help="workflow run id (required)")
+    ga_logs.add_argument("--job", required=True, help="job name (required)")
 
     args, extra = parser.parse_known_args(argv)
     configure_output_mode(args.output_mode)
