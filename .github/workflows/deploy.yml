@@ -166,7 +166,7 @@ jobs:
       - name: Download test job log
         id: download-test-job-log
         run: |
-          ./snow_change_helper.py github-actions-logs --run-id "$RUN_ID" --job "$TEST_JOB_NAME"
+          ./snow_change_helper.py github-actions-logs --output-mode stdout --run-id "$RUN_ID" --job "$TEST_JOB_NAME" > job.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.event.repository.name }}
@@ -176,9 +176,9 @@ jobs:
 
       - name: Post test job log
         run: |
-          ./snow_change_helper.py snow-command --verbose post-work-note \
+          cat job.log | ./snow_change_helper.py snow-command --verbose post-work-note \
             --number "$CHANGE_NUMBER" \
-            --text "${{ steps.download-test-job-log.outputs.job_log }}"
+            --stdin
         env:
           CHANGE_NUMBER: ${{ steps.create-change.outputs.CHANGE_NUMBER }}
 
