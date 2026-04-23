@@ -229,7 +229,7 @@ def github_actions_logs(run_id: str, job) -> None:
     # We must handle the redirect explicitly
     job_log = _download_url_handling_github_redirects(api_url).decode("utf-8")
 
-    write_multiline_output("job_log", job_log)
+    print(job_log)
 
 
 def build_change_html() -> None:

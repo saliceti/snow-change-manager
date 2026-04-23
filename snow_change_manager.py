@@ -72,6 +72,7 @@ SNOW_STATES = {
 
 LOCAL_TIMEZONE = ZoneInfo("Europe/London")
 
+NHS_WORK_NOTE_SIZE = 4000
 
 def resolve_endpoint(custom, function_name, **params):
     """
@@ -418,8 +419,33 @@ def post_work_note(snow_url, number, auth_header, work_note, custom, snow_profil
     method, path = resolve_endpoint(
         custom, "post_work_note", snow_profile=snow_profile, number=number, sys_id=sys_id)
     url = f"{snow_url}{path}"
-    payload = {"work_notes": work_note}
-    return send_request(url, method, auth_header, payload=payload)
+
+    # The NHS API is limited to 4000 characters per work note
+    # Keep 100 characters for additional text in each section
+    section_text_size = 100
+    chunk_size = NHS_WORK_NOTE_SIZE - section_text_size
+    chunks = [work_note[i:i + chunk_size]
+              for i in range(0, len(work_note), chunk_size)]
+    is_multipart = len(chunks) > 1
+
+    last_status = None
+    last_data = None
+    for i,chunk in enumerate(chunks):
+        if is_multipart:
+            section_text = f"Multipart message. Part {i+1}/{len(chunks)}:\n\n"
+        else:
+            section_text = ""
+        payload = {"work_notes": section_text + chunk}
+        last_status, last_data = send_request(
+            url,
+            method,
+            auth_header,
+            payload=payload,
+        )
+        if last_status != 200:
+            raise urllib.error.HTTPError(url, last_status, "Error sending work note chunk")
+
+    return last_status, last_data
 
 
 def main():
