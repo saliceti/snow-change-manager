@@ -73,9 +73,11 @@ def _download_url_handling_github_redirects(api_url: str) -> bytes:
 
     try:
         with no_redirect_opener.open(request) as response:
+            print("No redirect 302")
             return response.read()
     # 302 redirects are caught and we expect an HTTPError
     except urllib.error.HTTPError as err:
+        print(f"Redirect 302. Location: {err.headers.get('Location')}")
         redirect_url = err.headers.get("Location")
         redirect_request = urllib.request.Request(redirect_url)
 
@@ -217,7 +219,9 @@ def _get_job_id(run_id, job):
 
 
 def github_actions_logs(run_id: str, job) -> None:
+    print("Getting job id...")
     job_id = _get_job_id(run_id, job)
+    print(f"Job id = {job_id}")
 
     api_url = (
         f"https://api.github.com/repos/{os.environ['REPO_OWNER']}/"
@@ -227,7 +231,9 @@ def github_actions_logs(run_id: str, job) -> None:
     # The request to Github API is a redirect 302
     # If urllib follows the redirect, the second request returns 401
     # We must handle the redirect explicitly
+    print("Getting job log...")
     job_log = _download_url_handling_github_redirects(api_url).decode("utf-8")
+    print(f"Job log = {job_log}")
 
     write_multiline_output("job_log", job_log)
 
