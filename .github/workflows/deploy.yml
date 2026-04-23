@@ -185,7 +185,6 @@ jobs:
           RUN_ID: ${{github.run_id}}
           TEST_JOB_NAME: Run integration tests on custom NHS ServiceNow dev instance
 
-`
 
   #     - name: Add create change summary
   #       run: ./snow_change_helper.py add-create-change-summary
