@@ -16,14 +16,18 @@ OUTPUT_MODE = "github"
 
 
 def configure_output_mode(mode: str) -> None:
+    print(f"Setting output mode to {mode}")
     global OUTPUT_MODE
     OUTPUT_MODE = mode
 
 
 def write_output(name: str, value: str) -> None:
+    print(OUTPUT_MODE)
     if OUTPUT_MODE == "stdout":
+        print("stdout")
         print(f"{name}={value}")
     else:
+        print("github")
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
             fh.write(f"{name}={value}\n")
 
