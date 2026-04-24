@@ -1,0 +1,9 @@
+name: Hello world
+description: Print hello world
+
+runs:
+  using: composite
+  steps:
+    - name: Print hello world
+      run: |
+        echo "Hello world!"
