@@ -13,7 +13,7 @@ runs:
   steps:
     - name: List commits
       id: commit-list
-      run: ../snow_change_helper.py list-commits
+      run: ../../snow_change_helper.py list-commits
       shell: bash
       env:
         COMMITS_CONTEXT: ${{ inputs.commits_context }}
