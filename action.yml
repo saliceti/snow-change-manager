@@ -4,7 +4,12 @@ description: Print hello world
 runs:
   using: composite
   steps:
-    - name: Print hello world
+    - name: Print hello world - inline
       shell: bash
       run: |
         echo "Hello world!"
+
+    - name: Print hello world - script
+      shell: bash
+      run: |
+        python hello.py
