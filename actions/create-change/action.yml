@@ -18,8 +18,7 @@ runs:
         ls -l
         ls -l ..
         ls -l $GITHUB_ACTION_PATH
-        $GITHUB_ACTION_PATH/snow_change_helper.py list-commits
-        ../../snow_change_helper.py list-commits
+        $GITHUB_ACTION_PATH/snow_change_helper.py --output-mode stdout list-commits
       shell: bash
       env:
         COMMITS_CONTEXT: ${{ inputs.commits_context }}
