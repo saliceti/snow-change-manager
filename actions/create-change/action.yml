@@ -17,10 +17,13 @@ runs:
         pwd
         ls -l
         ls -l ..
+        ls -l $GITHUB_ACTION_PATH
+        $GITHUB_ACTION_PATH/snow_change_helper.py list-commits
         ../../snow_change_helper.py list-commits
       shell: bash
       env:
         COMMITS_CONTEXT: ${{ inputs.commits_context }}
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
 
     # - name: Set Greeting
     #   run: echo "Hello $INPUT_WHO_TO_GREET."
