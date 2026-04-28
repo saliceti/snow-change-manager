@@ -13,6 +13,21 @@ inputs:
   version:
     description: Release version (git tag)
     required: true
+  snow-host:
+    description: ServiceNow host
+    required: true
+  snow-client-id:
+    description: ServiceNow API client id
+    required: true
+  snow-client-secret:
+    description: ServiceNow API client secret
+    required: true
+  snow-standard-change:
+    description: ServiceNow standard change template id
+    required: true
+  snow-profile:
+    description: ServiceNow API integration profile
+    required: true
 outputs:
   change-number:
     description: Change number
@@ -86,3 +101,5 @@ runs:
       env:
         SHORT_DESCRIPTION: ${{ inputs.short-description }}
         CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
+        SNOW_AUTH: oauth
+        SNOW_CUSTOM: true
