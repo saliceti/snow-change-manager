@@ -27,4 +27,4 @@ runs:
     - name: Print
       shell: bash
       run: |
-        echo ${{steps.commit.outputs.COMMITS_HTML}}
+        echo ${{steps.commit-list.outputs.COMMITS_HTML}}
