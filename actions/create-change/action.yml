@@ -28,7 +28,7 @@ runs:
       if: github.event_name == 'push'
       id: extract-pr-jira
       shell: bash
-      run: ./snow_change_helper.py extract-pr-jira
+      run: $GITHUB_ACTION_PATH/snow_change_helper.py extract-pr-jira
       env:
         HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         REPO_OWNER: ${{ github.repository_owner }}
@@ -39,7 +39,7 @@ runs:
     - name: Build change HTML
       id: build-change-html
       shell: bash
-      run: ./snow_change_helper.py build-change-html
+      run: $GITHUB_ACTION_PATH/snow_change_helper.py build-change-html
       env:
         RELEASE_VERSION: ${{ inputs.version }}
         PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
