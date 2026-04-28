@@ -228,7 +228,6 @@ def github_actions_logs(run_id: str, job) -> None:
 
 def build_change_html() -> None:
     release_version = os.environ["RELEASE_VERSION"]
-    short_description = f"Release Manage breast screening version {release_version}"
 
     workflow_run_link = os.environ["WORKFLOW_RUN_LINK"]
     pr_number = os.environ["PR_NUMBER"]
@@ -255,7 +254,6 @@ def build_change_html() -> None:
 {commits_html}"""
 
     write_multiline_output("CHANGE_HTML", html)
-    write_output("SHORT_DESCRIPTION", short_description)
 
 
 def add_create_change_summary() -> None:

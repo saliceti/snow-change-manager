@@ -87,8 +87,7 @@ class TestSnowChangeHelper(unittest.TestCase):
             "</table>\n"
             "<h3>Commits</h3>\n"
             "<table><tbody><tr><td>commit</td></tr></tbody></table>\n"
-            "EOF\n"
-            "SHORT_DESCRIPTION=Release Manage breast screening version v1.2.3\n", )
+            "EOF\n")
 
     def test_add_create_change_summary_writes_expected_stdout_output(self):
         env = {
