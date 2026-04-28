@@ -14,17 +14,28 @@ runs:
     - name: List commits
       id: commit-list
       run: |
-        pwd
-        ls -l
-        ls -l ..
-        ls -l $GITHUB_ACTION_PATH
         $GITHUB_ACTION_PATH/snow_change_helper.py list-commits
       shell: bash
       env:
-        COMMITS_CONTEXT: ${{ inputs.commits_context }}
+        # COMMITS_CONTEXT: ${{ inputs.commits_context }}
+        COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
+
+    # - name: Extract PR and Jira info
+    #   if: github.event_name == 'push'
+    #   id: extract-pr-jira
+    #   shell: bash
+    #   run: ./snow_change_helper.py extract-pr-jira
+    #   env:
+    #     HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+    #     REPO_OWNER: ${{ github.repository_owner }}
+    #     REPO_NAME: ${{ github.event.repository.name }}
+    #     REPO_HTML_URL: ${{ github.event.repository.html_url }}
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Print
       shell: bash
       run: |
-        echo ${{steps.commit-list.outputs.COMMITS_HTML}}
+        echo "${COMMITS_HTML}"
+      env:
+        COMMITS_HTML: ${{steps.commit-list.outputs.COMMITS_HTML}}
