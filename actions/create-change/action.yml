@@ -18,19 +18,13 @@ runs:
         ls -l
         ls -l ..
         ls -l $GITHUB_ACTION_PATH
-        $GITHUB_ACTION_PATH/snow_change_helper.py --output-mode stdout list-commits
+        $GITHUB_ACTION_PATH/snow_change_helper.py list-commits
       shell: bash
       env:
         COMMITS_CONTEXT: ${{ inputs.commits_context }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
 
-    # - name: Set Greeting
-    #   run: echo "Hello $INPUT_WHO_TO_GREET."
-    #   shell: bash
-    #   env:
-    #     INPUT_WHO_TO_GREET: ${{ inputs.who-to-greet }}
-
-    # - name: Random Number Generator
-    #   id: random-number-generator
-    #   run: echo "random-number=$(echo $RANDOM)" >> $GITHUB_OUTPUT
-    #   shell: bash
+    - name: Print
+      shell: bash
+      run: |
+        echo ${{steps.commit.outputs.COMMITS_HTML}}
