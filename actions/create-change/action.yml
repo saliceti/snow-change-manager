@@ -1,8 +1,11 @@
 name: Create change
 description: Create standard change in ServiceNow
 inputs:
-  commits_context:
-    description: Commits context
+  github_token:
+    description: Github token
+    required: true
+  version:
+    description: Release version (git tag)
     required: true
 outputs:
   change-number:
@@ -21,21 +24,46 @@ runs:
         COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
 
-    # - name: Extract PR and Jira info
-    #   if: github.event_name == 'push'
-    #   id: extract-pr-jira
-    #   shell: bash
-    #   run: ./snow_change_helper.py extract-pr-jira
-    #   env:
-    #     HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-    #     REPO_OWNER: ${{ github.repository_owner }}
-    #     REPO_NAME: ${{ github.event.repository.name }}
-    #     REPO_HTML_URL: ${{ github.event.repository.html_url }}
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract PR and Jira info
+      if: github.event_name == 'push'
+      id: extract-pr-jira
+      shell: bash
+      run: ./snow_change_helper.py extract-pr-jira
+      env:
+        HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        REPO_OWNER: ${{ github.repository_owner }}
+        REPO_NAME: ${{ github.event.repository.name }}
+        REPO_HTML_URL: ${{ github.event.repository.html_url }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+    - name: Build change HTML
+      id: build-change-html
+      shell: bash
+      run: ./snow_change_helper.py build-change-html
+      env:
+        RELEASE_VERSION: ${{ inputs.version }}
+        PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+        PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+        JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+        JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+        COMMITS_HTML: ${{ steps.commit-list.outputs.COMMITS_HTML }}
+        WORKFLOW_RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_ACTOR: ${{ github.actor }}
 
     - name: Print
       shell: bash
       run: |
-        echo "${COMMITS_HTML}"
+        echo "COMMITS_HTML=${COMMITS_HTML}"
+        echo "PR_NUMBER=$PR_NUMBER"
+        echo "PR_LINK=$PR_LINK"
+        echo "JIRA_REFERENCE=$JIRA_REFERENCE"
+        echo "JIRA_LINK=$JIRA_LINK"
+        echo "CHANGE_HTML=$CHANGE_HTML"
       env:
         COMMITS_HTML: ${{steps.commit-list.outputs.COMMITS_HTML}}
+        PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
+        PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
+        JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
+        JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+        CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
