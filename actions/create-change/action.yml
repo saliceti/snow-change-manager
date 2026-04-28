@@ -4,13 +4,25 @@ inputs:
   github_token:
     description: Github token
     required: true
+  short-description:
+    description: Standard change customised short description
+    required: true
+  standard-change:
+    description: Standard change template id
+    required: true
   version:
     description: Release version (git tag)
     required: true
 outputs:
   change-number:
     description: Change number
-    value: ${{ steps.random-number-generator.outputs.random-number }}
+    value: ${{ steps.create-change.outputs.change-number }}
+  change-sys-id:
+    description: Change sys-id
+    value: ${{ steps.create-change.outputs.sys-id }}
+  change-link:
+    description: Change link
+    value: ${{ steps.create-change.outputs.change-link }}
 runs:
   using: "composite"
   steps:
@@ -20,7 +32,6 @@ runs:
         $GITHUB_ACTION_PATH/snow_change_helper.py list-commits
       shell: bash
       env:
-        # COMMITS_CONTEXT: ${{ inputs.commits_context }}
         COMMITS_CONTEXT: ${{ toJSON(github.event.commits) }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
 
@@ -51,19 +62,27 @@ runs:
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_ACTOR: ${{ github.actor }}
 
-    - name: Print
-      shell: bash
+    - name: Create and schedule change
+      id: create-change
+      shell: bash -euo pipefail {0}
       run: |
-        echo "COMMITS_HTML=${COMMITS_HTML}"
-        echo "PR_NUMBER=$PR_NUMBER"
-        echo "PR_LINK=$PR_LINK"
-        echo "JIRA_REFERENCE=$JIRA_REFERENCE"
-        echo "JIRA_LINK=$JIRA_LINK"
-        echo "CHANGE_HTML=$CHANGE_HTML"
+        $GITHUB_ACTION_PATH/snow_change_helper.py snow-command create \
+          --short-description "$SHORT_DESCRIPTION" \
+          --standard-change "$SNOW_STANDARD_CHANGE" | tee create_output.env
+
+        source create_output.env
+
+        $GITHUB_ACTION_PATH/snow_change_helper.py snow-command --verbose post-work-note \
+          --number "$CHANGE_NUMBER" \
+          --text "[code]$CHANGE_HTML[/code]"
+
+        echo "Change created successfully and scheduled immediately"
+
+        {
+          echo "change-sys-id=$CHANGE_SYS_ID"
+          echo "change-number=$CHANGE_NUMBER"
+          echo "change-link=$CHANGE_LINK"
+        } >> "$GITHUB_OUTPUT"
       env:
-        COMMITS_HTML: ${{steps.commit-list.outputs.COMMITS_HTML}}
-        PR_NUMBER: ${{ steps.extract-pr-jira.outputs.pull_request_number }}
-        PR_LINK: ${{ steps.extract-pr-jira.outputs.pull_request_link }}
-        JIRA_REFERENCE: ${{ steps.extract-pr-jira.outputs.jira_reference }}
-        JIRA_LINK: ${{ steps.extract-pr-jira.outputs.jira_link }}
+        SHORT_DESCRIPTION: ${{ inputs.short-description }}
         CHANGE_HTML: ${{ steps.build-change-html.outputs.CHANGE_HTML }}
